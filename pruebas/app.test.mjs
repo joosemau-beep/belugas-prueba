@@ -67,7 +67,7 @@ test('un partido completo: cada jugada, deshacer, recargar, terminar y las cuent
   await toca(pg, 'res', 'sack'); await toca(pg, 'quien', 'rodrigo');
   await toca(pg, 'tdr'); await toca(pg, 'pr', ''); await toca(pg, 'conv', '2-1');
   await paso('7–8', /Ataque/);
-  await toca(pg, 'res', 'int');
+  await toca(pg, 'res', 'int'); await toca(pg, 'sinyd'); // ✕ en «¿Hasta dónde llegó?»: ellos salen de su 5
   await paso('7–8', /Defensa/);
   await toca(pg, 'res', 'pick6'); await toca(pg, 'quien', 'mau'); await toca(pg, 'conv', '0');
   await paso('13–8', /Defensa/); // después del pick 6 ellos vuelven a atacar
@@ -1327,6 +1327,9 @@ test('la cancha en defensa va volteada, y si no se sabía dónde iba el balón e
   // se guarda dónde iba y desde ahí se vuelve a llevar la cuenta: la siguiente jugada ya sale con su balón
   assert.deepEqual(await pg.evaluate(() => { const p = st.partido, j = p.jugadas[2]; return [j.ini, j.yd, j.antes.sabe, j.antes.spot, p.sabe, p.spot]; }), [22, 9, true, 22, true, 31]); // eslint-disable-line no-undef
   await bandera(); assert.deepEqual(await leeCancha(pg), [0, 19, 19, 19, '0yd']);
+  // dónde iba el balón también se guarda en el teléfono: al recargar la cuenta sigue (antes se perdía)
+  await toca(pg, 'sinyd'); await pg.waitForTimeout(400); await pg.reload(); await pg.waitForSelector('#tel .nav');
+  assert.deepEqual(await pg.evaluate(() => { const p = st.partido; return [p.jugadas[2].ini, p.jugadas[3].antes.spot, p.jugadas[3].antes.sabe]; }), [22, 31, true]); // eslint-disable-line no-undef
   assert.deepEqual(pg.errores, []);
   await pg.context().close();
 });
@@ -1339,6 +1342,112 @@ test('la hoja de la cancha cabe sin recorrerla en 320 × 568 y 375 × 667, con e
     assert.deepEqual(await mide(), ['¿Dónde iba el balón?', true, true, true, true], `${w} × ${h}`);
     await enCancha(pg, 10); await enCancha(pg, 20);
     assert.deepEqual([await mide(), (await leeCancha(pg)).slice(0, 4)], [['¿Cuánto avanzó?', true, true, true, true], [10, 20, 20, 10]], `${w} × ${h}`);
+    assert.deepEqual(pg.errores, []);
+    await pg.context().close();
+  }
+});
+// ---------- después de una intercepción: «¿Hasta dónde llegó?» y la conversión interceptada (Mau, 24-nov) ----------
+const hojaDe = (pg) => pg.evaluate(() => st.hoja); // eslint-disable-line no-undef
+const corregir = async (pg, i) => { await pg.evaluate((n) => { A.fila(n); pintar(); }, i); await pg.waitForTimeout(100); }; // eslint-disable-line no-undef
+// la raya del regreso: [la yarda guardada en la hoja, dónde está la raya y la perilla contadas desde la izquierda, cuántas piezas hay en la cancha, la cifra]
+const leeHasta = async (pg) => { const [yd, raya, perilla, balon, cifra] = await leeCancha(pg); return [yd, raya, perilla, balon, await pg.locator('#canchav > *').count(), cifra]; };
+test('interceptamos: «¿Hasta dónde llegó?» sale después de quién, la raya sola se mueve en la cancha, la barrita y − +, y nuestra serie empieza ahí (también al recargar)', async () => {
+  const pg = await telefono(srv.url); await partidoCancha(pg);
+  // ellos van en su 15 (la 35 contada desde nuestra zona): de ahí sale la raya
+  await toca(pg, 'lado', 'D'); await toca(pg, 'res', 'bandera'); await toca(pg, 'pr', 'pase'); await toca(pg, 'quien', 'juancho'); await enCancha(pg, 35); await toca(pg, 'rgok');
+  await toca(pg, 'res', 'intn'); assert.equal(await hojaDe(pg), 'quien'); await toca(pg, 'quien', 'juancho');
+  assert.deepEqual([await hojaDe(pg), await pg.locator('#rgtit').innerText()], ['cuanto', '¿Hasta dónde llegó?']);
+  assert.deepEqual(await leeHasta(pg), [35, 35, 35, null, 2, 'la15']); // sin balón ni franja: la raya y su perilla
+  await enCancha(pg, 18); assert.deepEqual(await leeHasta(pg), [18, 18, 18, null, 2, 'la18']);
+  await pmCancha(pg, 1); assert.deepEqual(await leeHasta(pg), [19, 19, 19, null, 2, 'la19']);
+  await pmCancha(pg, -1, 2); assert.deepEqual(await leeHasta(pg), [17, 17, 17, null, 2, 'la17']);
+  await arrastra(pg, '#cancha', 17, 25); assert.deepEqual(await leeHasta(pg), [25, 25, 25, null, 2, 'la25']);
+  await enCancha(pg, 32, '#desliza'); assert.deepEqual(await leeHasta(pg), [32, 32, 32, null, 2, 'la18']); // pasando medio campo los números bajan, como en la cancha
+  await pg.locator('#tel .velo').click({ position: { x: 5, y: 5 }, force: true }); assert.equal(await hojaDe(pg), 'cuanto'); // tocar fuera no la cierra
+  await toca(pg, 'rgok');
+  const estado = () => pg.evaluate(() => { const p = st.partido, j = p.jugadas[1]; return [j.k, j.id, j.hasta, p.lado, p.spot, p.sabe, st.hoja]; }); // eslint-disable-line no-undef
+  assert.deepEqual(await estado(), ['intn', 'juancho', 32, 'O', 32, true, null]);
+  // la jugada siguiente sale con el balón donde quedó
+  await toca(pg, 'res', 'pase'); await toca(pg, 'quien', 'nicolas');
+  assert.deepEqual(await leeCancha(pg), [0, 32, 32, 32, '0yd']);
+  await toca(pg, 'sinyd');
+  await pg.waitForTimeout(400); await pg.reload(); await pg.waitForSelector('#tel .nav');
+  assert.deepEqual(await pg.evaluate(() => [st.partido.jugadas[1].hasta, st.partido.jugadas[2].antes.spot]), [32, 32]); // eslint-disable-line no-undef
+  assert.deepEqual(pg.errores, []);
+  await pg.context().close();
+});
+test('nos interceptaron: la cancha va hacia nuestra zona, la ✕ deja la serie en la 5, en Corregir se pone después y si llegó a la zona es pick 6 con su conversión', async () => {
+  const pg = await telefono(srv.url); await partidoCancha(pg);
+  await toca(pg, 'res', 'pase'); await toca(pg, 'quien', 'nicolas'); await enCancha(pg, 15); await toca(pg, 'rgok'); // vamos en nuestra 15
+  await toca(pg, 'res', 'int');
+  assert.deepEqual([await hojaDe(pg), await pg.locator('#rgtit').innerText()], ['cuanto', '¿Hasta dónde llegó?']);
+  assert.deepEqual(await leeHasta(pg), [35, 15, 15, null, 2, 'la15']); // la raya sale donde iba la jugada; las yardas se cuentan desde la zona de ellos
+  await enCancha(pg, 30); assert.deepEqual(await leeHasta(pg), [20, 30, 30, null, 2, 'la20']);
+  await pmCancha(pg, 1); assert.deepEqual(await leeHasta(pg), [21, 29, 29, null, 2, 'la21']); // + es hacia donde van ellos: a la izquierda
+  await toca(pg, 'sinyd'); // ✕: como antes, ellos salen de su 5
+  const estado = () => pg.evaluate(() => { const p = st.partido, j = p.jugadas[1]; return [j.k, j.hasta ?? null, p.lado, p.spot, p.nos, p.ellos, st.hoja]; }); // eslint-disable-line no-undef
+  assert.deepEqual(await estado(), ['int', null, 'D', 5, 0, 0, null]);
+  // desde Corregir
+  await corregir(pg, 1); assert.match(await texto(pg), /Hasta dónde llegó Sin marcar Cambiar/);
+  await toca(pg, 'chasta'); await enCancha(pg, 30); await toca(pg, 'rgok');
+  assert.deepEqual(await estado(), ['int', 20, 'D', 20, 0, 0, null]);
+  await corregir(pg, 1); assert.match(await texto(pg), /Hasta dónde llegó La 20 de KAF Cambiar/);
+  await toca(pg, 'chasta'); assert.deepEqual(await leeHasta(pg), [20, 30, 30, null, 2, 'la20']); // se abre donde estaba
+  await enCancha(pg, 12); await toca(pg, 'rgok'); await corregir(pg, 1); assert.match(await texto(pg), /Hasta dónde llegó La 12 de Belugas Cambiar/);
+  // la regresaron hasta nuestra zona (la orilla izquierda): pick 6 de ellos y su conversión, que interceptamos
+  await toca(pg, 'chasta'); const r = await pg.locator('#cancha').boundingBox();
+  await pg.mouse.click(r.x + 8, r.y + 100); await pg.waitForTimeout(100);
+  assert.deepEqual([await leeHasta(pg), await pg.locator('#rganuncio.ver').innerText()], [[50, 0, 0, null, 2, 'TD'], '¡Pick 6!']);
+  await toca(pg, 'rgok');
+  assert.deepEqual(await estado(), ['pick6c', null, 'O', 5, 0, 6, 'conv']);
+  assert.match(await texto(pg), /Conversión de KAF De 1 Buena Fallida De 2 Buena Fallida Interceptada No se intentó/);
+  await toca(pg, 'conv', 'int'); assert.match(await texto(pg), /¿Quién interceptó\?/);
+  await toca(pg, 'cerrar'); assert.match(await texto(pg), /Interceptada No se intentó/); // la ✕ regresa a la conversión
+  await toca(pg, 'conv', 'int'); await toca(pg, 'convq', 'juancho');
+  // no da puntos, no pregunta dónde quedó (salimos de la 5) y la intercepción es de Juancho
+  assert.deepEqual(await estado(), ['pick6c', null, 'O', 5, 0, 6, null]);
+  assert.deepEqual(await pg.evaluate(() => { const j = st.partido.jugadas[1], g = juegoDe(st.partido); return [j.conv, j.convId, j.txt, g.st.juancho.intn, g.st.juancho.conv ?? null]; }), // eslint-disable-line no-undef
+    [[0, 0], 'juancho', 'pick 6 de KAF, lanzada por Mau · conversión interceptada por Juancho', 1, null]);
+  await corregir(pg, 1); assert.match(await texto(pg), /Conversión Interceptada, por Juancho Cambiar/);
+  assert.deepEqual(pg.errores, []);
+  await pg.context().close();
+});
+test('la regresamos hasta la zona: pasa a pick 6 nuestro y nuestra conversión interceptada falla sin puntos; una jugada corregida a intercepción también pregunta hasta dónde llegó', async () => {
+  const pg = await telefono(srv.url); await partidoCancha(pg);
+  await toca(pg, 'lado', 'D'); await toca(pg, 'res', 'intn'); await toca(pg, 'quien', 'juancho');
+  assert.deepEqual(await leeHasta(pg), [45, 45, 45, null, 2, 'la5']); // ellos iban en su 5
+  const r = await pg.locator('#cancha').boundingBox();
+  await pg.mouse.click(r.x + r.width - 8, r.y + 100); await pg.waitForTimeout(100);
+  assert.deepEqual([await leeHasta(pg), await pg.locator('#rganuncio.ver').innerText()], [[50, 50, 50, null, 2, 'TD'], '¡Pick 6!']);
+  await toca(pg, 'rgok');
+  const estado = () => pg.evaluate(() => { const p = st.partido, j = p.jugadas[0]; return [j.k, j.id, j.conv ?? null, p.lado, p.spot, p.nos, p.ellos, st.hoja]; }); // eslint-disable-line no-undef
+  assert.deepEqual(await estado(), ['pick6', 'juancho', null, 'D', 5, 6, 0, 'conv']);
+  await toca(pg, 'conv', 'int'); // la nuestra interceptada: se guarda ya, sin preguntar quién
+  assert.deepEqual(await estado(), ['pick6', 'juancho', [0, 0], 'D', 5, 6, 0, null]);
+  assert.deepEqual(await pg.evaluate(() => { const g = juegoDe(st.partido); return [st.partido.jugadas[0].txt, g.convs, g.st.juancho.intn, g.st.juancho.td]; }), ['Pick 6 de Juancho · conversión interceptada', [0, 1], 1, 1]); // eslint-disable-line no-undef
+  // un pase tapado que en realidad fue intercepción: al corregirlo sigue «¿Hasta dónde llegó?»
+  await toca(pg, 'res', 'tapado'); await toca(pg, 'quien', 'mau');
+  await corregir(pg, 1); await toca(pg, 'cqp'); await toca(pg, 'cqpya', 'intn');
+  assert.deepEqual([await hojaDe(pg), await pg.locator('#rgtit').innerText()], ['cuanto', '¿Hasta dónde llegó?']);
+  await enCancha(pg, 27); await toca(pg, 'rgok');
+  assert.deepEqual(await pg.evaluate(() => { const p = st.partido, j = p.jugadas[1]; return [j.k, j.id, j.hasta, p.lado, p.spot]; }), ['intn', 'mau', 27, 'O', 27]); // eslint-disable-line no-undef
+  // y si se corrige a otra cosa, el regreso se quita
+  await corregir(pg, 1); await toca(pg, 'cqp'); await toca(pg, 'cqpya', 'tapado');
+  assert.deepEqual(await pg.evaluate(() => { const p = st.partido, j = p.jugadas[1]; return [j.k, j.hasta ?? null, p.lado, p.spot]; }), ['tapado', null, 'D', 5]); // eslint-disable-line no-undef
+  assert.deepEqual(pg.errores, []);
+  await pg.context().close();
+});
+test('«¿Hasta dónde llegó?» y la conversión con «Interceptada» caben sin recorrerlas en 320 × 568 y 375 × 667', async () => {
+  for (const [w, h] of [[320, 568], [375, 667]]) {
+    const pg = await telefono(srv.url, { ancho: w, alto: h }); await partidoCancha(pg);
+    await toca(pg, 'lado', 'D'); await toca(pg, 'res', 'intn'); await toca(pg, 'quien', 'juancho');
+    assert.deepEqual(await pg.evaluate(() => { const e = document.querySelector('.hoja.cuanto'), t = document.querySelector('#rgtit'), v = document.querySelector('#rgv').getBoundingClientRect(), b = [...document.querySelectorAll('.rg-b')].map((x) => x.getBoundingClientRect()), d = document.querySelector('#desliza').getBoundingClientRect();
+      return [t.innerText, e.scrollHeight <= e.clientHeight, t.getBoundingClientRect().height < 30, v.left >= b[0].right && v.right <= b[1].left, d.bottom <= innerHeight]; }), ['¿Hasta dónde llegó?', true, true, true, true], `${w} × ${h}`);
+    await toca(pg, 'sinyd'); await toca(pg, 'lado', 'D'); await toca(pg, 'tdr'); await toca(pg, 'pr', '');
+    assert.deepEqual(await pg.evaluate(() => { const e = document.querySelector('#tel .hoja'), bs = [...e.querySelectorAll('.op')];
+      return [e.scrollHeight <= e.clientHeight, e.getBoundingClientRect().bottom <= innerHeight, bs.every((b) => b.scrollWidth <= b.clientWidth), bs.map((b) => b.innerText).join('|')]; }), [true, true, true, 'Buena|Fallida|Buena|Fallida|Interceptada|No se intentó'], `${w} × ${h}`);
+    await toca(pg, 'conv', 'int');
+    assert.deepEqual(await pg.evaluate(() => { const e = document.querySelector('#tel .hoja'); return [e.querySelector('h3').innerText, e.scrollHeight <= e.clientHeight, e.querySelectorAll('[data-a=convq]').length]; }), ['¿Quién interceptó?', true, 4], `${w} × ${h}`);
     assert.deepEqual(pg.errores, []);
     await pg.context().close();
   }
@@ -1547,7 +1656,7 @@ test('la jugada de la pulsera: es lo último de la jugada, un toque con su núme
   assert.equal(await pg.locator('.hoja [data-a="jg"][data-v=""]').getAttribute('class'), 'op rojo'); // «No sé» en rojo (Mau, 24-nov)
   await toca(pg, 'jg', 'Cruce corto'); assert.equal(await hoja(), null);
   await toca(pg, 'res', 'corrida'); await toca(pg, 'quien', 'nico'); await toca(pg, 'sinyd'); await toca(pg, 'jg', ''); assert.equal(await hoja(), null); // «No sé»
-  await toca(pg, 'res', 'int'); assert.equal(await hoja(), 'jg'); await toca(pg, 'jg', 'Poste de Z'); // la intercepción ya quedó guardada: solo falta la pulsera
+  await toca(pg, 'res', 'int'); assert.equal(await hoja(), 'cuanto'); await toca(pg, 'sinyd'); assert.equal(await hoja(), 'jg'); await toca(pg, 'jg', 'Poste de Z'); // la intercepción ya quedó guardada: hasta dónde llegó (✕) y al final la pulsera
   await toca(pg, 'lado', 'O'); await toca(pg, 'res', 'incompleto'); await toca(pg, 'inc', 'mal'); await toca(pg, 'jg', 'Falso QB');
   // TD: cómo, quién, yardas, conversión y al final la pulsera
   await toca(pg, 'res', 'td'); await toca(pg, 'como', 'pase'); await toca(pg, 'quien', 'nico'); await toca(pg, 'sinyd'); assert.equal(await hoja(), 'conv'); await toca(pg, 'conv', '0'); assert.equal(await hoja(), 'jg'); await toca(pg, 'jg', 'Z cierra');

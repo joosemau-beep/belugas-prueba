@@ -251,6 +251,7 @@ input.nombre:focus { border-color: var(--acento); }
 .rg-vw { position: relative; text-align: center; min-width: 0; white-space: nowrap; }
 .rg-v { display: inline-block; font: italic 900 100px/96px var(--disp); color: var(--ink); transition: color .15s; }
 .rg-v small { font: 700 15px/1 Inter; font-style: normal; color: var(--mut); margin-left: 4px; }
+.rg-v small.antes { margin: 0 6px 0 0; }
 .rg-v.tic { animation: rgTic .18s ease-out; }
 .rg-anuncio { position: absolute; z-index: 5; left: 50%; bottom: -24px; transform: translate(-50%, 0); background: #f6c90e; color: #3a2c00; font: 900 12px/1 Inter; padding: 6px 10px; border-radius: 999px; white-space: nowrap; opacity: 0; transition: opacity .15s, transform .2s; pointer-events: none; }
 .rg-anuncio.ver { opacity: 1; transform: translate(-50%, 2px); }
@@ -2115,7 +2116,8 @@ function hoja() {
         ${j.lado === 'O' && PULSERA.includes(j.k) && (LIBRO.length || j.jg) ? `<button class="campo" data-a="cjg" style="margin-top:12px"><div style="min-width:0"><span class="l">Jugada de la pulsera</span><b class="corta" style="display:block">${j.jg ? `${numJg(j.jg) ? numJg(j.jg) + ' · ' : ''}${esc(j.jg)}` : 'No sé'}</b></div><u>Cambiar</u></button>` : ''}
         ${j.lado === 'D' && ['bandera', 'tdr'].includes(j.k) ? `<h4 class="sub">¿Fue pase o corrida?</h4>${prBotones(j)}` : ''}
         ${conYardas(j) ? `<button class="campo" data-a="cyd" style="margin-top:12px"><div><span class="l">Yardas</span><b>${j.yd == null ? 'Sin yardas' : fmtYd(j.yd) + ' yd'}</b></div><u>Cambiar</u></button>` : ''}
-        ${['td', 'pick6', 'tdr', 'pick6c'].includes(j.k) ? `<button class="campo" data-a="cconv" style="margin-top:12px"><div><span class="l">Conversión</span><b>${!j.conv ? 'No se intentó' : `De ${j.conv[0]} · ${j.conv[1] ? 'buena' + (!['tdr', 'pick6c'].includes(j.k) ? `, atrapó ${nom(j.convId)}` : '') : 'fallida'}`}</b></div><u>Cambiar</u></button>` : ''}
+        ${['int', 'intn'].includes(j.k) ? `<button class="campo" data-a="chasta" style="margin-top:12px"><div><span class="l">Hasta dónde llegó</span><b>${j.hasta == null ? 'Sin marcar' : dondeQuedo(j)}</b></div><u>Cambiar</u></button>` : ''}
+        ${['td', 'pick6', 'tdr', 'pick6c'].includes(j.k) ? `<button class="campo" data-a="cconv" style="margin-top:12px"><div><span class="l">Conversión</span><b>${!j.conv ? 'No se intentó' : convInt(j) ? `Interceptada${['tdr', 'pick6c'].includes(j.k) && j.convId ? `, por ${nom(j.convId)}` : ''}` : `De ${j.conv[0]} · ${j.conv[1] ? 'buena' + (!['tdr', 'pick6c'].includes(j.k) ? `, atrapó ${nom(j.convId)}` : '') : 'fallida'}`}</b></div><u>Cambiar</u></button>` : ''}
         ${j.k === 'castigo' ? `<h4 class="sub">Castigo</h4><div class="ops dos acc"><button class="op${j.v === 'favor' ? ' prim' : ''}" data-a="ccast" data-v="favor">Al rival</button><button class="op${j.v === 'contra' ? ' prim' : ''}" data-a="ccast" data-v="contra">A Belugas</button></div>` : ''}
         ${cuantos ? `<h4 class="sub">${pregunta(j.k)}</h4>${porLados(cuantos, j.lado, (id) => botonPj(id, 'cquien', id === j.id), ' chicos')}` : ''}`;
     }
@@ -2128,11 +2130,12 @@ function hoja() {
   }
   if (st.hoja === 'conv') {
     const c = st.conv, j = c && porUid(c.uid);
-    if (j && c.paso) { const q = lanzo();
+    if (j && c.paso === 'int') h = `<h3>¿Quién interceptó?</h3>${pjsRecientes('D', 'convq')}`;
+    else if (j && c.paso) { const q = lanzo();
       h = `<h3>¿Quién la atrapó?</h3>${campoLanzo(q, 'conv')}${pjsRecientes(j.lado, 'convq', q)}`; }
     else if (j) h = `<h3>${['tdr', 'pick6c'].includes(j.k) ? `Conversión de ${r.corto}` : 'Conversión'}</h3>
       <div class="convf">${[1, 2].map((n) => `<div class="cf"><div class="cn">De ${n}</div><button class="op prim" data-a="conv" data-v="${n}-1">Buena</button><button class="op" data-a="conv" data-v="${n}-0">Fallida</button></div>`).join('')}</div>
-      <div class="ops" style="margin-top:4px"><button class="op sec" data-a="conv" data-v="0">No se intentó</button></div>`;
+      <div class="ops dos" style="margin-top:4px"><button class="op sec" data-a="conv" data-v="int">Interceptada</button><button class="op sec" data-a="conv" data-v="0">No se intentó</button></div>`;
   }
   if (st.hoja === 'ayuda') h = `<h3>Ajustes</h3>
     <button class="aj-fila" data-a="tour"><span>${AYUDA_SVG}</span>Cómo funciona la app<em>›</em></button>
@@ -2261,7 +2264,7 @@ const TXT = { pase: (n) => `pase a ${n}`, corrida: (n) => `corrida de ${n}`, inc
 // 1 sin quién lanzó ni «en su zona» y la conversión como «+1 de Rodrigo»; 2 además sin quién atrapó la conversión
 function textoDe(j, n = 0) {
   const c = j.conv, riv = ['tdr', 'pick6c'].includes(j.k);
-  const cv = !c ? '' : n ? (c[1] ? ` · +${c[0]}${n < 2 && !riv && j.convId ? ` de ${nom(j.convId)}` : ''}` : ` · +${c[0]} fallida`) : !c[1] ? ` · conversión de ${c[0]} fallida` : riv ? ` + ${c[0]}` : ` + ${c[0]} (atrapó ${nom(j.convId)})`;
+  const cv = !c ? '' : !c[0] ? (n ? (n < 2 ? ' · conv. interceptada' : ' · conv. INT') : ` · conversión interceptada${riv && j.convId ? ` por ${nom(j.convId)}` : ''}`) : n ? (c[1] ? ` · +${c[0]}${n < 2 && !riv && j.convId ? ` de ${nom(j.convId)}` : ''}` : ` · +${c[0]} fallida`) : !c[1] ? ` · conversión de ${c[0]} fallida` : riv ? ` + ${c[0]}` : ` + ${c[0]} (atrapó ${nom(j.convId)})`;
   if (j.k === 'castigo') return `castigo ${j.v === 'favor' ? 'a favor' : 'en contra'}`;
   if (j.k === 'td') return `TD de ${nom(j.id)}${n ? '' : j.qb ? `, pase de ${nom(j.qb)}` : ', por corrida'}${j.yd != null ? ` · ${j.yd} yd` : ''}${cv}`;
   if (j.k === 'sackr') return `sack a ${nom(j.id)}` + (j.yd != null ? ` · ${fmtYd(j.yd)} yd` : '');
@@ -2275,6 +2278,8 @@ function textoDe(j, n = 0) {
   return (TXT[j.k] || (() => String(j.k)))(SIN_QUIEN.includes(j.k) ? (j.id && P(j.id) ? P(j.id).corto : '') : nom(j.id)) + (j.drop ? ' · soltado' : '') + (j.yd != null ? ` · ${fmtYd(j.yd)} yd` : '');
 }
 // 1ª y 10: ya no se marca (Iker, 17-nov: la serie se acaba con Ataque/Defensa); ya no da puntos (Mau, 19-nov), tampoco en las jugadas viejas que la traen
+// la conversión interceptada (Mau, 24-nov): conv [0, 0] = falló sin puntos y no dice si era de 1 o de 2; si era de ellos, convId es quién de nosotros la interceptó
+const convInt = (j) => !!j.conv && !j.conv[0];
 const pdDe = (j) => !!j.pd && j.lado === 'O' && ['pase', 'corrida'].includes(j.k);
 const pdEllos = (j) => !!j.pd && j.lado === 'D' && j.k === 'bandera'; // 1ª y 10 que ellos lograron (estadística del equipo, sin puntos)
 // puntos de cada jugada y si cambia de lado (pick 6: después de nuestra conversión ellos reciben, seguimos en defensa)
@@ -2316,7 +2321,8 @@ function rehacer0(p) {
     }
     const pd = pdDe(j); if (pd) primera = true;
     j.txt = textoDe(j); j.alt = [textoDe(j, 1), textoDe(j, 2)]; // las versiones cortas, para donde el texto entero no cabe en un renglón
-    if (f.cambia) serie(lado === 'O' ? 'D' : 'O');
+    // la intercepción con su regreso marcado (hasta, en yardas del que se queda el balón): la serie siguiente sale de ahí; sin marcar, de la 5 como siempre
+    if (f.cambia) { serie(lado === 'O' ? 'D' : 'O'); if (j.hasta != null && ['int', 'intn'].includes(j.k)) spot = Math.max(1, Math.min(CAMPO - 1, j.hasta)); }
     else if (f.serie || f.reinicia) serie(lado); // pick 6 (nuestro o de ellos): después de la conversión patean y el mismo lado empieza en su 5
     else if (pd) down = 1;
     else if (!f.mismoDown) down = (down % 4) + 1;
@@ -2405,6 +2411,7 @@ function juegoDe(p) {
     if (j.k === 'tapado') s(j.id, 'tap');
     if (j.k === 'presion') s(j.id, 'pres');
     if (j.k === 'intn') s(j.id, 'intn');
+    if (['tdr', 'pick6c'].includes(j.k) && convInt(j)) s(j.convId, 'intn'); // la que interceptó en el punto extra de ellos también es su intercepción
     if (j.k === 'sack') s(j.id, 'sack');
     if (j.k === 'safety') s(j.id, 'saf');
   });
@@ -2477,7 +2484,7 @@ const viejo = (p) => !esHoy(p.inicio) && Date.now() - p.inicio > 6 * 3600e3; // 
 const fechaDe = (t) => (esHoy(t) ? 'Hoy' : new Date(t).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }).replace('.', ''));
 // el partido como viaja y como se guarda: solo lo que se marcó (el marcador y lo demás se cuentan de nuevo con rehacer)
 const aEnviar = (p) => ({ id: p.id, inicio: p.inicio, dia: p.dia, rival: p.rival, van: p === st.partido ? st.van : p.van || [], qb: p.qb, metaVer: p.metaVer, mvp: p.mvp, mvpVer: p.mvpVer, cambios: p.cambios || [], borradas: p.borradas || {}, terminado: !!p.terminado, terminadoVer: p.terminadoVer || 0,
-  aparatos: { [APARATO]: Date.now(), ...p.aparatos }, jugadas: p.jugadas.map(({ uid, t, ver, viva, k, id, v, conv, convId, convQb, qb, yd, drop, mal, jg, jgg, pr, pd, unica, lado, por }) => ({ uid, t, ver, viva, k, id, v, conv, convId, convQb, qb, yd, drop, mal, jg, jgg, pr, pd, unica, lado, por })) });
+  aparatos: { [APARATO]: Date.now(), ...p.aparatos }, jugadas: p.jugadas.map(({ uid, t, ver, viva, k, id, v, conv, convId, convQb, qb, yd, ini, hasta, drop, mal, jg, jgg, pr, pd, unica, lado, por }) => ({ uid, t, ver, viva, k, id, v, conv, convId, convQb, qb, yd, ini, hasta, drop, mal, jg, jgg, pr, pd, unica, lado, por })) });
 // dos copias del mismo partido: cada jugada queda en su versión más nueva, lo borrado no regresa (salvo que se haya
 // restaurado después) y rival, quiénes van, QB y «terminado» son del último que los cambió
 function juntar(a, b) {
@@ -2665,11 +2672,25 @@ const RG = { trazo: 3, gana: '#1d4f8f', pierde: '#b42318' }; // gana y pierde: l
 const signo = (mas) => { const L = 20, t = RG.trazo, m = L / 2, e = t / 2; return `<svg width="${L}" height="${L}" viewBox="0 0 ${L} ${L}" aria-hidden="true"><path d="M${e} ${m}H${L - e}${mas ? `M${m} ${e}V${L - e}` : ''}" stroke="currentColor" stroke-width="${t}" stroke-linecap="round" fill="none"/></svg>`; };
 function hojaCuanto() {
   const c = st.cuanto, j = porUid(c.uid); if (!j) return '';
-  return `<div class="hoja cuanto">${barra('<h3 id="rgtit">¿Cuánto avanzó?</h3>', 'sinyd', 'rgok', 'Guardar las yardas')}
+  return `<div class="hoja cuanto">${barra(`<h3 id="rgtit">${c.hasta ? '¿Hasta dónde llegó?' : '¿Cuánto avanzó?'}</h3>`, 'sinyd', 'rgok', c.hasta ? 'Guardar dónde quedó' : 'Guardar las yardas')}
     <div class="cancha" id="cancha"></div><div class="cancha-n" id="canchan"></div>
-    <div class="rg-pmf"><button class="rg-b" data-pm="-1" aria-label="Menos">${signo(false)}</button><div class="rg-vw"><span class="rg-anuncio" id="rganuncio"></span><span class="rg-v num" id="rgv">${fmtYd(c.yd)}<small>yd</small></span></div><button class="rg-b" data-pm="1" aria-label="Más">${signo(true)}</button></div>
+    <div class="rg-pmf"><button class="rg-b" data-pm="-1" aria-label="Menos">${signo(false)}</button><div class="rg-vw"><span class="rg-anuncio" id="rganuncio"></span><span class="rg-v num" id="rgv">${cifra(c)}</span></div><button class="rg-b" data-pm="1" aria-label="Más">${signo(true)}</button></div>
     <div class="desliza" id="desliza"></div></div>`; // la cancha y la barrita las dibuja montarCuanto, a la medida del teléfono
 }
+// después de una intercepción: hasta dónde llegó el que la interceptó (Mau, 24-nov). Es la misma hoja en otro modo (c.hasta): la cancha sin balón ni franja,
+// solo la raya donde quedó, y la cifra dice la yarda como se lee en la cancha («la 18»). c.yd es esa yarda contada desde la zona del que se queda el balón;
+// sale de donde iba la jugada si se sabía y, si no, de la 5. ✓ la guarda en la jugada (hasta) y la serie siguiente empieza ahí; ✕ la deja como estaba (en la 5)
+const cifra = (c) => (!c.hasta ? `${fmtYd(c.yd)}<small>yd</small>` : c.yd >= CAMPO ? 'TD' : `<small class="antes">la</small>${c.yd <= PRIMERA ? c.yd : CAMPO - c.yd}`);
+function abrirHasta(j) { st.cuanto = { uid: j.uid, hasta: true, yd: j.hasta != null ? j.hasta : j.antes.sabe ? CAMPO - j.antes.spot : 5 }; st.hoja = 'cuanto'; }
+function ponerHasta(f) {
+  const c = st.cuanto; st.cuanto = null; st.hoja = null;
+  const j = c && porUid(c.uid); if (!j) return;
+  // la regresó hasta la zona: la jugada pasa a pick 6 (nuestro o de ellos) y sigue su conversión
+  if (f >= CAMPO) { const nos = j.k === 'intn'; if (st.jgLuego === j.uid) st.jgLuego = null; corrige(j, (x) => { x.k = nos ? 'pick6' : 'pick6c'; x.hasta = null; x.jg = null; x.jgg = null; }, 'Guardado'); st.flash = { td: nos, nos, ellos: !nos }; abrirConv(j); return; }
+  corrige(j, (x) => { x.hasta = f; }, 'Guardado');
+}
+// dónde quedó, en palabras (para Corregir, que no tiene cancha): de qué lado de medio campo
+const dondeQuedo = (j) => { const f = j.k === 'intn' ? j.hasta : CAMPO - j.hasta; return f === PRIMERA ? 'Medio campo' : `La ${f < PRIMERA ? f : CAMPO - f} de ${f < PRIMERA ? 'Belugas' : R(HOY).corto}`; };
 function abrirCuanto(j) { if (st.yds !== 'si') return; st.cuanto = { uid: j.uid, yd: j.yd || 0 }; st.hoja = 'cuanto'; }
 function ponerYardas(yd) {
   const c = st.cuanto; st.cuanto = null; st.hoja = null;
@@ -2686,14 +2707,16 @@ function trasYardas(j) { if (j && st.convLuego === j.uid) { st.convLuego = null;
 const BALON = 'M-17 0C-10 -12 10 -12 17 0C10 12 -10 12 -17 0Z', COSTURA = 'M-6.5 0H6.5M-4 -3V3M0 -3.4V3.4M4 -3V3';
 function montarCuanto() {
   const cv = $('#cancha'), ds = $('#desliza'); if (!cv || !ds || !st.cuanto) return;
-  const c = st.cuanto, j = porUid(c.uid), td = j.k === 'td', inv = j.lado === 'D', NAR = '#ff9440', AC = '#5aaeff';
-  // en defensa la cancha va volteada: ellos avanzan hacia nuestra zona (a la izquierda) desde su balón
+  const c = st.cuanto, j = porUid(c.uid), h = !!c.hasta, td = !h && j.k === 'td', inv = h ? j.lado === 'O' : j.lado === 'D', NAR = '#ff9440', AC = '#5aaeff';
+  // en defensa la cancha va volteada: ellos avanzan hacia nuestra zona (a la izquierda) desde su balón.
+  // En el regreso de una intercepción (h) manda el que se queda el balón: si nos interceptaron, ellos van hacia la izquierda; si interceptamos, nosotros a la derecha
   const enCancha = (f) => (inv ? CAMPO - f : f);
   // dónde iba el balón: el que lleva la cuenta o, si se perdió (se saltaron yardas), el que pongan con el primer toque en la cancha (c.ini).
   // Mientras no se sepa, la cancha sale sin balón ni franja y − + y la barrita miden solo cuánto (de −20 a +30, desde la 20).
   // En un TD nuestro se sabe dónde acabó (la zona): lo que se mueve es dónde empezó.
   let sabe, spot, lo, hi;
   const ubica = () => {
+    if (h) { sabe = true; spot = 0; lo = 1; hi = CAMPO; return; } // c.yd ya es la yarda donde quedó (de la 1 a la zona)
     sabe = td || j.antes.sabe || c.ini != null; spot = j.antes.sabe ? j.antes.spot : c.ini != null ? c.ini : 20;
     lo = td ? 1 : sabe ? Math.max(-12, -spot) : -20; hi = td ? CAMPO : j.k === 'sackr' ? 0 : sabe ? CAMPO - spot - (inv ? 1 : 0) : 30;
     const t = $('#rgtit'); if (t) t.textContent = sabe ? '¿Cuánto avanzó?' : '¿Dónde iba el balón?';
@@ -2715,22 +2738,22 @@ function montarCuanto() {
   const X2 = (f) => 24 + enCancha(f) * (W - 48) / CAMPO;
   const dibuja = () => {
     const y = c.yd, col = y < 0 ? RG.pierde : RG.gana, xi = X(iniDe(y)), xf = X(finDe(y)), xm = td ? xi : xf; // xm: lo que se mueve
-    $('#canchav').innerHTML = !sabe ? '' : `<rect x="${Math.min(xi, xf)}" y="0" width="${Math.abs(xf - xi)}" height="${H}" fill="${y < 0 ? RG.pierde : AC}" fill-opacity="${y < 0 ? .5 : .3}"/><path d="M${xi} 0V${H}" stroke="#fff" stroke-width="1.6"/>`
+    $('#canchav').innerHTML = !sabe ? '' : (h ? '' : `<rect x="${Math.min(xi, xf)}" y="0" width="${Math.abs(xf - xi)}" height="${H}" fill="${y < 0 ? RG.pierde : AC}" fill-opacity="${y < 0 ? .5 : .3}"/><path d="M${xi} 0V${H}" stroke="#fff" stroke-width="1.6"/>`)
       + `<path d="M${xf} 0V${H}" stroke="${AC}" stroke-width="3.5"/><circle cx="${xf}" cy="10" r="5.5" fill="${AC}"/>`
-      + `<g transform="translate(${xi} ${m}) rotate(-28)"><path d="${BALON}" fill="#0c2247" stroke="${AC}" stroke-width="2.4" stroke-linejoin="round"/><path d="${COSTURA}" stroke="${AC}" stroke-width="1.8" stroke-linecap="round"/></g>`;
+      + (h ? '' : `<g transform="translate(${xi} ${m}) rotate(-28)"><path d="${BALON}" fill="#0c2247" stroke="${AC}" stroke-width="2.4" stroke-linejoin="round"/><path d="${COSTURA}" stroke="${AC}" stroke-width="1.8" stroke-linecap="round"/></g>`);
     const a = X2(iniDe(y)), f = X2(finDe(y)), p = td ? a : f, q = td ? f : a; // p: la perilla (lo que se mueve); q: el puntito
-    ds.innerHTML = `<svg width="${W}" height="60" viewBox="0 0 ${W} 60"><rect x="24" y="26" width="${W - 48}" height="8" rx="4" fill="rgba(11,27,51,.13)"/><rect x="${Math.min(a, f)}" y="26" width="${Math.abs(f - a)}" height="8" rx="4" fill="${col}"/><circle cx="${q}" cy="30" r="5" fill="#fff" stroke="${col}" stroke-width="2.5"/>`
+    ds.innerHTML = `<svg width="${W}" height="60" viewBox="0 0 ${W} 60"><rect x="24" y="26" width="${W - 48}" height="8" rx="4" fill="rgba(11,27,51,.13)"/>${h ? '' : `<rect x="${Math.min(a, f)}" y="26" width="${Math.abs(f - a)}" height="8" rx="4" fill="${col}"/><circle cx="${q}" cy="30" r="5" fill="#fff" stroke="${col}" stroke-width="2.5"/>`}`
       + `<circle cx="${p}" cy="32" r="24" fill="rgba(11,27,51,.16)"/><circle cx="${p}" cy="30" r="24" fill="#fff" stroke="${RG.gana}" stroke-width="3"/><path d="M${p - 6} 21V39M${p} 21V39M${p + 6} 21V39" stroke="${RG.gana}" stroke-width="2.4" stroke-linecap="round"/></svg>`;
   };
   const poner = (y) => {
     y = Math.max(lo, Math.min(hi, Math.round(y))); if (y === c.yd) return;
     const antes = c.yd; c.yd = y;
-    const v = $('#rgv'); if (v) { v.innerHTML = `${fmtYd(y)}<small>yd</small>`; v.style.color = y > 0 ? RG.gana : y < 0 ? RG.pierde : ''; v.classList.remove('tic'); void v.offsetWidth; v.classList.add('tic'); }
+    const v = $('#rgv'); if (v) { v.innerHTML = cifra(c); v.style.color = h ? '' : y > 0 ? RG.gana : y < 0 ? RG.pierde : ''; v.classList.remove('tic'); void v.offsetWidth; v.classList.add('tic'); }
     dibuja();
     if (navigator.vibrate) navigator.vibrate(6);
     // al llegar a la zona: pastilla, rebote y vibración
-    const meta = sabe && !td && !inv ? CAMPO : null, dentro = meta != null && spot + y >= meta, cruza = dentro && spot + antes < meta;
-    const an = $('#rganuncio'); if (an) { an.textContent = '¡Touchdown!'; an.classList.toggle('ver', dentro); }
+    const meta = h || (sabe && !td && !inv) ? CAMPO : null, dentro = meta != null && spot + y >= meta, cruza = dentro && spot + antes < meta;
+    const an = $('#rganuncio'); if (an) { an.textContent = h ? '¡Pick 6!' : '¡Touchdown!'; an.classList.toggle('ver', dentro); }
     if (cruza) { const e = $('#rgv'); if (e) { e.classList.remove('rebote'); void e.offsetWidth; e.classList.add('rebote'); } if (navigator.vibrate) navigator.vibrate([25, 40, 25]); }
   };
   ubica(); dibuja();
@@ -2816,7 +2839,7 @@ const A = {
     if (st.hoja === 'conv' && st.conv) { const j = porUid(st.conv.uid); if (j && j.conv === undefined) avisar({ txt: `${j.txt} · sin conversión`, id: j.id, tipo: j.tipo, uid: j.uid, accion: ['ponerconv', 'Agregar', j.uid] }, 6000); }
     if (st.hoja === 'cuanto') { const c = st.cuanto; st.cuanto = null; st.hoja = null; st.lanzo = null; trasYardas(c && porUid(c.uid)); return; }
     if (st.hoja === 'jg') st.jgLuego = null; // la ✕: la jugada se queda sin pulsera
-    st.lanzo = null; st.hoja = null;
+    st.lanzo = null; st.hoja = null; st.hastaLuego = null;
   },
   empezar: () => empezar(),
   compartir: (v) => compartir(v),
@@ -2858,7 +2881,7 @@ const A = {
     if (v === 'td') { st.hoja = 'como'; return; }
     if (v === 'incompleto') { st.cayo = false; st.hoja = 'inc'; return; }
     if (v === 'pick6c') { const j = guarda({ k: 'pick6c', qb: st.partido.qb }); st.hoja = null; abrirConv(j); return; }
-    if (SIN_QUIEN.includes(v)) { const q = st.partido.qb, j = guarda({ k: v, qb: ['incompleto', 'int'].includes(v) ? q : null, id: ['sackr', 'safetyc'].includes(v) ? q : null }); st.hoja = null; if (conYardas(j)) abrirCuanto(j); return; }
+    if (SIN_QUIEN.includes(v)) { const q = st.partido.qb, j = guarda({ k: v, qb: ['incompleto', 'int'].includes(v) ? q : null, id: ['sackr', 'safetyc'].includes(v) ? q : null }); st.hoja = null; if (conYardas(j)) abrirCuanto(j); else if (v === 'int') abrirHasta(j); return; }
     st.hoja = 'quien';
   },
   // TD: primero cómo fue; el de pase da TD de pase al QB
@@ -2898,7 +2921,7 @@ const A = {
     const j = guarda({ k: s, id, qb: ['pase', 'incompleto'].includes(s) ? lanzo() : null, ...(s === 'incompleto' && st.cayo && id ? { drop: true } : {}), ...(s === 'bandera' && st.pr ? { pr: st.pr } : {}) });
     st.cayo = false; st.pr = null;
     st.lanzo = null;
-    if (conYardas(j)) abrirCuanto(j);
+    if (conYardas(j)) abrirCuanto(j); else if (s === 'intn') abrirHasta(j);
   },
   // el nombre desde el aviso (sack a nuestro QB, safety en contra)
   ponquien: (id) => { const ta = st.toast, j = ta && porUid(ta.uid); if (!j) return; j.id = id; j.ver = sube(j.ver); rehacer(st.partido); avisar({ ...ta, ...avisoDe(j), id, opc: null }, 5000); subir(); },
@@ -2906,27 +2929,32 @@ const A = {
   conv: (v) => {
     const c = st.conv, j = c && porUid(c.uid); if (!j) { st.hoja = null; return; }
     if (v === '0') { st.hoja = null; corrige(j, (x) => { x.conv = null; x.convId = null; }, 'Guardado'); return; }
+    // interceptada: falló y no da puntos; si era de ellos falta quién de nosotros la interceptó (en la misma hoja). La serie siguiente sale de la 5, como siempre
+    if (v === 'int') { if (['tdr', 'pick6c'].includes(j.k)) { c.paso = 'int'; return; } st.hoja = null; corrige(j, (x) => { x.conv = [0, 0]; x.convId = null; x.convQb = null; }, 'Guardado'); return; }
     const [n, entro] = v.split('-').map(Number);
     // nuestra conversión que entró: falta quién la atrapó (siempre es pase), en la misma hoja
     if (entro && !['tdr', 'pick6c'].includes(j.k)) { c.paso = n; return; }
     st.hoja = null; corrige(j, (x) => { x.conv = [n, entro]; x.convId = null; }, 'Guardado');
   },
-  convq: (id) => { const c = st.conv, j = c && porUid(c.uid); st.hoja = null; if (!j) return; const n = c.paso; corrige(j, (x) => { x.conv = [n, 1]; x.convId = id || null; x.convQb = lanzo(); }, 'Guardado'); st.lanzo = null; },
-  rgok: () => { const c = st.cuanto; ponerYardas(c ? c.yd : 0); },
+  convq: (id) => { const c = st.conv, j = c && porUid(c.uid); st.hoja = null; if (!j) return; const n = c.paso; corrige(j, (x) => { if (n === 'int') { x.conv = [0, 0]; x.convId = id || null; x.convQb = null; } else { x.conv = [n, 1]; x.convId = id || null; x.convQb = lanzo(); } }, 'Guardado'); st.lanzo = null; },
+  rgok: () => { const c = st.cuanto; if (c && c.hasta) ponerHasta(c.yd); else ponerYardas(c ? c.yd : 0); },
   sinyd: () => { const c = st.cuanto; st.cuanto = null; st.hoja = null; trasYardas(c && porUid(c.uid)); },
   // corregir cualquier jugada tocando su renglón: no se borra nada hasta escoger qué cambia
-  fila: (i) => { st.edita = +i; st.hoja = 'corrige'; st.lanzo = null; st.jgDe = null; st.incDe = null; },
-  cquien: (id) => { const j = st.partido.jugadas[st.edita]; st.hoja = null; corrige(j, (x) => { if (x.k === 'int') x.qb = id || null; else x.id = id || null; }); },
+  fila: (i) => { st.edita = +i; st.hoja = 'corrige'; st.lanzo = null; st.jgDe = null; st.incDe = null; st.hastaLuego = null; },
+  cquien: (id) => { const j = st.partido.jugadas[st.edita]; st.hoja = null; corrige(j, (x) => { if (x.k === 'int') x.qb = id || null; else x.id = id || null; }); if (st.hastaLuego === j.uid) abrirHasta(j); st.hastaLuego = null; },
+  chasta: () => { abrirHasta(st.partido.jugadas[st.edita]); },
   ccast: (v) => { const j = st.partido.jugadas[st.edita]; st.hoja = null; corrige(j, (x) => { x.v = v; }); },
   cconv: () => { const j = st.partido.jugadas[st.edita]; abrirConv(j); },
   cyd: () => { const j = st.partido.jugadas[st.edita]; const y = st.yds; st.yds = 'si'; abrirCuanto(j); st.yds = y; },
   cqp: () => { st.hoja = 'cqp'; },
   cqpya: (v) => {
     const j = st.partido.jugadas[st.edita], [k, cv] = v.split(':');
-    corrige(j, (x) => { const era = x.k; x.k = k; if (k === 'castigo') x.v = cv; if (!['td', 'pick6', 'tdr', 'pick6c'].includes(k)) { x.conv = null; x.convId = null; x.convQb = null; } if (!CON_NOMBRE.includes(k)) x.id = null; if (!conYardas(x)) x.yd = null; if (k !== 'incompleto') { x.drop = false; x.mal = false; } if (!PULSERA.includes(k)) { x.jg = null; x.jgg = null; } if (!['bandera', 'tdr'].includes(k)) x.pr = null; if (!['pase', 'corrida', 'bandera'].includes(k)) x.pd = false; if (k === 'td' && era === 'corrida') x.qb = null; // la corrida que acabó en TD es TD corriendo, no de pase
+    corrige(j, (x) => { const era = x.k; x.k = k; if (k === 'castigo') x.v = cv; if (!['td', 'pick6', 'tdr', 'pick6c'].includes(k)) { x.conv = null; x.convId = null; x.convQb = null; } if (!CON_NOMBRE.includes(k)) x.id = null; if (!conYardas(x)) x.yd = null; if (k !== 'incompleto') { x.drop = false; x.mal = false; } if (!PULSERA.includes(k)) { x.jg = null; x.jgg = null; } if (!['bandera', 'tdr'].includes(k)) x.pr = null; if (!['pase', 'corrida', 'bandera'].includes(k)) x.pd = false; if (!['int', 'intn'].includes(k)) x.hasta = null; if (k === 'td' && era === 'corrida') x.qb = null; // la corrida que acabó en TD es TD corriendo, no de pase
     else if (['int', 'pick6c', 'pase', 'incompleto', 'td'].includes(k)) x.qb = x.qb || st.partido.qb; else x.qb = null; });
     st.hoja = ['td', 'pick6'].includes(k) ? null : CON_NOMBRE.includes(k) && !SIN_QUIEN.includes(k) && !j.id ? 'corrige' : null;
     if (['td', 'pick6', 'tdr', 'pick6c'].includes(k)) abrirConv(j);
+    // corregida a intercepción: sigue hasta dónde llegó (si antes falta decir quién interceptó, después de escogerlo)
+    if (['int', 'intn'].includes(k)) { if (st.hoja === 'corrige') st.hastaLuego = j.uid; else abrirHasta(j); }
   },
   borrar: () => { const p = st.partido, j = p.jugadas[st.edita], antes = [JSON.parse(JSON.stringify(j))], tb = sube(j.viva); st.hoja = null; p.borradas[j.uid] = tb; rehacer(p); avisar({ txt: 'Borrada: ' + j.txt, alt: alts(j, 'Borrada: '), tipo: j.tipo, snap: antes, revive: tb }); subir(); },
   // Deshacer: desde el aviso, regresa lo último que se hizo (guardar, corregir o borrar); sin aviso, quita la última jugada
