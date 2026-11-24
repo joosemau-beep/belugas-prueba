@@ -1043,21 +1043,38 @@ test('Mi temporada: Cómo voy, Lo mío, Partido a partido, Mi jugada más larga 
   await pg.context().close();
 });
 
-test('en iPad (700 px o más, con dedo) Métricas y las fichas van a 820 de ancho y a dos columnas; Inicio, y la Mac con cursor, a ancho de teléfono', async () => {
+test('en iPad (700 px o más, con dedo) Métricas y las fichas van a 820 de ancho y a dos columnas; Inicio, Partidos y Jugadores también (Mau, 24-nov); el teléfono y la Mac con cursor, como siempre', async () => {
   const pg = await telefono(srv.url, { app: { ancho: 820, pantalla: 1180 } }); await sembrar(pg);
   const mide = () => pg.evaluate(() => [getComputedStyle(document.querySelector('#tel .cuerpo')).display, document.querySelector('#tel').offsetWidth, new Set([...document.querySelectorAll('#tel .w')].map((w) => Math.round(w.getBoundingClientRect().left))).size, Math.round(document.querySelector('#tel .nav').getBoundingClientRect().width)]);
   await toca(pg, 'ir', 'metricas');
   assert.deepEqual(await mide(), ['grid', 820, 2, 430]);
   await abreJug(pg, 'nicolas'); assert.deepEqual((await mide()).slice(0, 3), ['grid', 820, 2]);
   await pg.evaluate(() => { A.juego('g6'); pintar(); }); assert.deepEqual((await mide()).slice(0, 3), ['grid', 820, 2]); // eslint-disable-line no-undef
-  await toca(pg, 'ir', 'inicio'); assert.deepEqual((await mide()).slice(0, 2), ['block', 430]);
+  // Inicio: el partido de hoy a la izquierda y los líderes a la derecha, sin encimarse; Partidos y Jugadores: la lista en dos columnas; la barra, a ancho de teléfono
+  const listas = () => pg.evaluate(() => { const t = document.querySelector('#tel'), c = t.querySelector('.card.dos'), xs = c ? new Set([...c.children].map((e) => Math.round(e.getBoundingClientRect().left))).size : 0, in2 = t.querySelector('.in2');
+    const [a, b] = in2 ? [...in2.children].map((e) => e.getBoundingClientRect()) : []; return [t.offsetWidth, Math.round(t.querySelector('.nav').getBoundingClientRect().width), xs, in2 ? a.right <= b.left && b.right <= innerWidth && a.width > 300 && b.width > 300 : null, document.scrollingElement.scrollWidth <= innerWidth]; });
+  await toca(pg, 'ir', 'inicio'); assert.deepEqual(await listas(), [820, 430, 0, true, true]);
+  await toca(pg, 'ir', 'partidos'); assert.deepEqual(await listas(), [820, 430, 2, null, true]);
+  await toca(pg, 'ir', 'jugadores'); assert.deepEqual(await listas(), [820, 430, 2, null, true]);
+  // sus hojas salen al centro, a 600 de ancho
+  await toca(pg, 'ir', 'inicio'); await pg.evaluate(() => { st.hoja = 'ayuda'; pintar(); }); await pg.waitForTimeout(300); // eslint-disable-line no-undef
+  assert.deepEqual(await pg.locator('#tel > .hoja').evaluate((h) => { const r = h.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.left + r.width / 2), Math.round(r.bottom) === innerHeight]; }), [600, 410, true]);
   assert.deepEqual(pg.errores, []);
   await pg.context().close();
-  // en la Mac (cursor fino) nada cambia: Métricas sigue a 430
+  // en el teléfono nada de esto: una columna y la hoja de orilla a orilla
+  const cel = await telefono(srv.url); await sembrar(cel);
+  await toca(cel, 'ir', 'inicio'); assert.equal(await cel.locator('#tel .in2').count(), 0);
+  await toca(cel, 'ir', 'jugadores'); assert.equal(await cel.locator('#tel .card.dos').evaluate((c) => getComputedStyle(c).columnCount), 'auto');
+  await toca(cel, 'ir', 'partidos'); assert.equal(await cel.locator('#tel .card.dos').evaluate((c) => new Set([...c.children].map((e) => Math.round(e.getBoundingClientRect().left))).size), 1);
+  await cel.context().close();
+  // en la Mac (cursor fino) nada cambia: Métricas sigue a 430 y Marcar es el del teléfono
   const ctx = await (await navegador()).newContext({ viewport: { width: 1200, height: 800 } }); await ctx.addInitScript(() => localStorage.setItem('belugas.visto.ver', '1'));
-  await ctx.route(/supabase\.co/, (r) => r.abort()); const mac = await ctx.newPage(); await mac.goto(srv.url); await mac.waitForSelector('#tel .nav');
+  await ctx.route(/supabase\.co/, (r) => r.abort()); const mac = await ctx.newPage(); await mac.goto(srv.url); await mac.waitForSelector('#tel .nav'); await sembrar(mac);
   await toca(mac, 'ir', 'metricas');
   assert.deepEqual(await mac.evaluate(() => [getComputedStyle(document.querySelector('#tel .cuerpo')).display, document.querySelector('#tel').offsetWidth]), ['block', 430]);
+  await toca(mac, 'ir', 'inicio'); assert.equal(await mac.locator('#tel .in2').count(), 0);
+  await toca(mac, 'empezar'); await toca(mac, 'rival', 'kaffies'); await toca(mac, 'vantoggle', 'mau'); await toca(mac, 'vanlisto');
+  assert.deepEqual(await mac.evaluate(() => [document.querySelectorAll('#tel .pant.ip').length, document.querySelector('#tel').offsetWidth, document.querySelectorAll('#tel [data-a=mas]').length]), [0, 430, 1]);
   await ctx.close();
 });
 
@@ -1177,8 +1194,8 @@ test('los marcadores de Anotaciones van en un renglón, también los del rival, 
 });
 // 3. el aviso de la jugada guardada cortaba el texto con puntos y se perdían las yardas y la conversión (texto de 407 px en una caja de 255 en iPad y de 200 en el SE);
 // ahora, si el texto entero no cabe, el aviso dice lo mismo más corto (sin quién lanzó, luego sin quién atrapó la conversión, al final sin el marcador, que ya está arriba)
-test('el aviso de la jugada guardada cabe en su renglón con las yardas y la conversión, en 390, 375 e iPad', async () => {
-  for (const [w, h, app] of [[390, 844, 0], [375, 667, 0], [820, 1180, 1]]) {
+test('el aviso de la jugada guardada cabe en su renglón con las yardas y la conversión, en 390 y 375 (en iPad Marcar es otro: su prueba va al final)', async () => {
+  for (const [w, h, app] of [[390, 844, 0], [375, 667, 0]]) {
     const pg = await telefono(srv.url, app ? { app: { ancho: w, pantalla: h } } : { ancho: w, alto: h }); await sembrar(pg);
     await toca(pg, 'empezar'); await toca(pg, 'rival', 'kaffies'); for (const id of ['mau', 'nicolas', 'rodrigo', 'juancho']) await toca(pg, 'vantoggle', id); await toca(pg, 'vanlisto');
     const aviso = () => pg.locator('.pant > .pregunta.aviso .txt').evaluate((e) => [e.innerText.replace(/\s+/g, ' '), e.scrollWidth <= e.clientWidth + 1]);
@@ -1189,7 +1206,7 @@ test('el aviso de la jugada guardada cabe en su renglón con las yardas y la con
     // safety en contra y pick 6 en contra (Más opciones): lo mismo
     await ponLado(pg, 'O'); await toca(pg, 'mas'); await toca(pg, 'res', 'safetyc'); [t, cabe] = await aviso(); assert.ok(cabe && /^Safety en contra/.test(t), `${w}: «${t}» ${cabe ? 'cabe' : 'no cabe'}`);
     await ponLado(pg, 'O'); await toca(pg, 'mas'); await toca(pg, 'res', 'pick6c'); await toca(pg, 'conv', '1-0'); [t, cabe] = await aviso(); assert.ok(cabe && /^Pick 6 de KAF · \+1 fallida/.test(t), `${w}: «${t}» ${cabe ? 'cabe' : 'no cabe'}`);
-    // con sitio, el aviso dice todo: en iPad (el aviso mide 255 px) sigue sin caber el texto entero, pero la jugada corta sí lleva a quién atrapó
+    // con sitio, el aviso dice todo
     await toca(pg, 'res', 'corrida'); await toca(pg, 'quien', 'rodrigo'); await ponYd(pg, 5); await toca(pg, 'rgok'); [t, cabe] = await aviso(); assert.deepEqual([t, cabe], ['Corrida de Rodrigo · +5 yd', true]);
     assert.deepEqual(pg.errores, []);
     await pg.context().close();
@@ -1198,7 +1215,7 @@ test('el aviso de la jugada guardada cabe en su renglón con las yardas y la con
 // 4. en «Lo que pasó», «Última: pick 6 de KAF, lanz…» se cortaba con puntos y en el SE su negrita se salía de la pantalla (hasta 431 px en 375); ahora la jugada va en
 // su propio renglón a lo ancho, con la versión corta si la entera no cabe, y Corregir y Deshacer debajo
 test('«Última» en Lo que pasó se lee entera en un renglón, con Corregir y Deshacer debajo', async () => {
-  for (const [w, h, app] of [[390, 844, 0], [375, 667, 0], [820, 1180, 1]]) {
+  for (const [w, h, app] of [[390, 844, 0], [375, 667, 0]]) {
     const pg = await telefono(srv.url, app ? { app: { ancho: w, pantalla: h } } : { ancho: w, alto: h }); await sembrar(pg);
     await toca(pg, 'empezar'); await toca(pg, 'rival', 'kaffies'); for (const id of ['mau', 'nicolas', 'rodrigo', 'juancho']) await toca(pg, 'vantoggle', id); await toca(pg, 'vanlisto');
     await toca(pg, 'mas'); await toca(pg, 'res', 'pick6c'); await toca(pg, 'conv', '1-0'); await toca(pg, 'mkver', 'paso');
@@ -2045,4 +2062,177 @@ test('la de prueba con llave de prueba trae los datos de verdad desde sus propia
   await r2.context().close();
   assert.deepEqual([...real.errores, ...pr.errores], []);
   await real.context().close();
+});
+
+// ---------- 24-nov (noche): Marcar en iPad (Mau: «la 2 está súper») ----------
+// El campo siempre a la vista, los botones (todos, sin «Más opciones») y «Lo que pasó» a la vez, y al tocar un botón la jugada toma todo lo de abajo.
+// En pase, corrida y bandera es un tablero: quién, yardas y pulsera (o cómo fue) en una pantalla, en el orden que sea; con todo puesto se guarda sola
+const ipad = async (acostado = true) => { const pg = await telefono(srv.url, acostado ? { ancho: 1180, alto: 820 } : { ancho: 820, alto: 1180 }); await sembrar(pg, true);
+  await toca(pg, 'empezar'); await toca(pg, 'rival', 'kaffies'); for (const id of ['mau', 'nicolas', 'rodrigo', 'iker']) await toca(pg, 'vantoggle', id); await toca(pg, 'vanlisto'); return pg; };
+// nada se sale de la pantalla ni se encima: la página no se recorre de lado, cada botón y la pregunta caben a lo ancho, los botones no se pisan entre sí,
+// el campo queda arriba de lo demás, los botones de marcar libran la barra de pestañas y la pregunta llega hasta abajo sin tener que recorrerla
+const CABE = () => { const out = [], W = innerWidth, H = innerHeight, t = document.querySelector('#tel'), q = (s) => t.querySelector(s), r = (e) => e.getBoundingClientRect();
+  if (document.scrollingElement.scrollWidth > W) out.push('la página se recorre de lado');
+  const bs = [...t.querySelectorAll('.pant.ip :is(.mk-pag, .hoja, .mcab) button')].filter((e) => r(e).width).map((e) => [e.dataset.a + (e.dataset.v ? ':' + e.dataset.v : ''), r(e)]);
+  for (const [n, b] of bs) if (b.left < -1 || b.right > W + 1 || b.top < -1) out.push(`${n} se sale`);
+  for (let i = 0; i < bs.length; i++) for (let k = i + 1; k < bs.length; k++) { const [a, b] = [bs[i][1], bs[k][1]]; if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2 && bs[i][0] !== 'editar' && bs[k][0] !== 'editar') out.push(`${bs[i][0]} y ${bs[k][0]} se enciman`); }
+  const campo = r(q('.ip-campo')), hoja = q('.pant.ip .hoja'), abajo = hoja || q('.ip-abajo');
+  if (campo.left < 0 || campo.right > W) out.push('el campo se sale'); if (r(abajo).top < campo.bottom) out.push('el campo queda tapado');
+  if (hoja) { const h = r(hoja); if (Math.round(h.left) !== 0 || Math.round(h.right) !== W || Math.round(h.bottom) !== H) out.push(`la pregunta no va de orilla a orilla: ${[h.left, h.right, h.bottom].map(Math.round)}`); if (hoja.scrollHeight > hoja.clientHeight + 1) out.push('la pregunta no cabe sin recorrerla'); }
+  else { const nav = r(q('.nav')).top; for (const e of t.querySelectorAll('.mk-pag button')) if (r(e).bottom > nav) out.push(`${e.dataset.v || e.dataset.a} queda bajo la barra`); }
+  const sv = q('#cancha svg'); if (!sv || +sv.getAttribute('width') !== q('#cancha').clientWidth) out.push('el campo no está dibujado a su medida');
+  return out; };
+const jugada = (pg, i) => pg.evaluate((i) => { const j = st.partido.jugadas.at(i); return j ? [j.k, j.id, j.yd ?? null, j.jg ?? null, j.pr ?? null, j.qb ?? null] : null; }, i); // eslint-disable-line no-undef
+const estado = (pg) => pg.evaluate(() => [st.hoja, !!st.tab, !!st.cuanto, st.jgLuego || null, st.partido.jugadas.length]); // eslint-disable-line no-undef
+const pulsera = async (pg, num, accion = 'tjg') => { await pg.locator(`#tel [data-a="${accion}"]`, { hasText: new RegExp(`^${num}$`) }).click(); await pg.waitForTimeout(150); };
+const dice = async (pg, sel) => (await pg.locator(sel).innerText()).replace(/\s+/g, ' ');
+const equis = async (pg) => { await pg.locator('#tel .hoja .hb.no').click(); await pg.waitForTimeout(150); };
+
+test('iPad acostado: el campo siempre a la vista, todos los botones sin «Más opciones» y «Lo que pasó» al lado; el tablero guarda pase, corrida y bandera en una pantalla y nada se sale ni se encima', async () => {
+  const pg = await ipad();
+  const ve = () => pg.evaluate(() => { const t = document.querySelector('#tel'), q = (s) => t.querySelector(s), r = (s) => q(s).getBoundingClientRect();
+    return [t.offsetWidth, t.querySelectorAll('.pant.ip').length, q('#cancha').clientWidth > 1000, t.querySelectorAll('#cancha').length, t.querySelectorAll('[data-a=mas]').length, t.querySelectorAll('.mk-grande').length,
+      [...t.querySelectorAll('.mk-chicos [data-a=res]')].map((b) => b.dataset.v).join(), q('.ip-lista') ? r('.ip-lista').left >= r('.mk-pag').right : null, q('.ip-campo').classList.contains('activo')]; });
+  assert.deepEqual(await ve(), [1180, 1, true, 1, 0, 5, 'pick6c,safetyc,medio', true, false]);
+  assert.deepEqual(await pg.evaluate(CABE), []);
+  // «Pase completo»: los botones se quitan y la jugada toma todo lo de abajo; todavía no se guarda nada y la ✓ no sale hasta decir quién
+  await toca(pg, 'res', 'pase');
+  assert.deepEqual(await estado(pg), ['quien', true, true, null, 0]);
+  assert.deepEqual((await ve()).slice(5), [0, '', null, true]);
+  assert.deepEqual(await pg.evaluate(CABE), []);
+  assert.match(await dice(pg, '#tel .hoja.tablero'), /Pase completo[\s\S]*¿Quién la atrapó\?[\s\S]*Lanzó Mau[\s\S]*¿Cuánto avanzó\?[\s\S]*¿Qué jugada fue\?[\s\S]*No sé/);
+  assert.equal(await pg.locator('#tel .hoja .hb.si').count(), 0);
+  assert.equal(await pg.locator('#tel .hoja [data-a=tq][data-v=mau]').count(), 0); // el que lanza no se atrapa su pase
+  // quién se enciende y se apaga con otro toque
+  const prendido = (v) => pg.locator(`#tel .hoja [data-a=tq][data-v=${v}]`).getAttribute('aria-pressed');
+  await toca(pg, 'tq', 'nicolas'); assert.deepEqual([await prendido('nicolas'), await pg.locator('#tel .hoja .hb.si').count()], ['true', 1]);
+  await toca(pg, 'tq', 'nicolas'); assert.deepEqual([await prendido('nicolas'), await pg.locator('#tel .hoja .hb.si').count()], ['false', 0]);
+  await toca(pg, 'tq', 'nicolas');
+  // las yardas se tocan en el campo de arriba (salimos de la 5: tocar la 13 son 8); con quién y yardas aún falta la pulsera: sigue abierta
+  await enCancha(pg, 13);
+  assert.deepEqual([await pg.evaluate(() => st.cuanto.yd), await pg.locator('#rgv').innerText(), ...(await estado(pg))], [8, '+8yd', 'quien', true, true, null, 0]); // eslint-disable-line no-undef
+  // el número de la pulsera es lo último: la jugada se guarda sola, completa, y regresan los botones con la lista al día y el balón en la 13
+  await pulsera(pg, 22);
+  assert.deepEqual(await jugada(pg, -1), ['pase', 'nicolas', 8, 'Pase normal 1', null, 'mau']);
+  assert.deepEqual(await estado(pg), [null, false, false, null, 1]);
+  assert.deepEqual([...(await ve()).slice(5), await pg.evaluate(() => st.partido.spot)], [5, 'pick6c,safetyc,medio', true, false, 13]); // eslint-disable-line no-undef
+  assert.match(await dice(pg, '#tel .ip-lista'), /Pase a Nicolás · \+8 yd[\s\S]*Deshacer[\s\S]*pase a Nicolás/);
+  assert.ok(await pg.locator('#tel .ip-lista .pregunta.aviso .txt').evaluate((e) => e.scrollWidth <= e.clientWidth + 1)); // el aviso, entero en su renglón
+  assert.deepEqual(await pg.evaluate(CABE), []);
+  // en otro orden: primero la pulsera, luego el campo y al final quién; ahí se guarda
+  await toca(pg, 'res', 'corrida'); await pulsera(pg, 11); await enCancha(pg, 20);
+  assert.deepEqual(await estado(pg), ['quien', true, true, null, 1]);
+  await toca(pg, 'tq', 'rodrigo');
+  assert.deepEqual([await jugada(pg, -1), await estado(pg)], [['corrida', 'rodrigo', 7, 'Pantalla rápida', null, null], [null, false, false, null, 2]]);
+  // soltar el dedo en el campo también la cierra si ya estaba lo demás
+  await toca(pg, 'res', 'pase'); await toca(pg, 'tq', 'iker'); await pulsera(pg, 31); await enCancha(pg, 23); await pg.waitForTimeout(150);
+  assert.deepEqual([await jugada(pg, -1), await estado(pg)], [['pase', 'iker', 3, 'Z cierra', null, 'mau'], [null, false, false, null, 3]]);
+  // − y + afinan sin cerrar; «No sé» cuenta como pulsera dicha
+  await toca(pg, 'res', 'corrida'); await toca(pg, 'tq', 'iker'); await ponYd(pg, 2); assert.deepEqual(await estado(pg), ['quien', true, true, null, 3]);
+  await pg.locator('#tel .hoja .tb-ns').click(); await pg.waitForTimeout(150);
+  assert.deepEqual([await jugada(pg, -1), await estado(pg)], [['corrida', 'iker', 2, null, null, null], [null, false, false, null, 4]]);
+  // la ✓ guarda con lo que haya (sin yardas y sin pulsera) y ya no pregunta la pulsera después
+  await toca(pg, 'res', 'pase'); await toca(pg, 'tq', 'rodrigo'); await toca(pg, 'tok');
+  assert.deepEqual([await jugada(pg, -1), await estado(pg)], [['pase', 'rodrigo', null, null, null, 'mau'], [null, false, false, null, 5]]);
+  // la ✕ no guarda nada; tocar fuera (el marcador), tampoco, y no cambia nada de arriba
+  await toca(pg, 'res', 'corrida'); await toca(pg, 'tq', 'rodrigo'); await enCancha(pg, 40); await equis(pg);
+  assert.deepEqual(await estado(pg), [null, false, false, null, 5]);
+  await toca(pg, 'res', 'pase'); await toca(pg, 'tq', 'rodrigo'); await pg.mouse.click(1100, 30); await pg.waitForTimeout(150);
+  assert.deepEqual([...(await estado(pg)), await pg.evaluate(() => st.pant)], [null, false, false, null, 5, 'marcar']); // eslint-disable-line no-undef
+  // quién lanzó se cambia sin perder lo ya puesto; el nuevo pasador deja de salir entre los que atrapan
+  await toca(pg, 'res', 'pase'); await toca(pg, 'tq', 'nicolas'); await pg.locator('#tel .tb-lz').click(); await pg.waitForTimeout(150);
+  assert.equal(await pg.evaluate(() => st.hoja), 'qb'); assert.deepEqual(await pg.evaluate(CABE), []); // eslint-disable-line no-undef
+  await toca(pg, 'qb', 'rodrigo');
+  assert.deepEqual([await pg.evaluate(() => [st.hoja, st.tab.id]), await dice(pg, '#tel .tb-lz'), await pg.locator('#tel .hoja [data-a=tq][data-v=rodrigo]').count()], [['quien', 'nicolas'], 'Lanzó Rodrigo Cambiar', 0]); // eslint-disable-line no-undef
+  // el pase sin yardas de antes perdió la cuenta del balón: el campo sale sin balón, el primer toque dice dónde iba y el segundo ya mide
+  assert.equal(await pg.locator('#rgtit').innerText(), '¿Dónde iba el balón?');
+  await pulsera(pg, 12); await enCancha(pg, 30);
+  assert.deepEqual([await pg.locator('#rgtit').innerText(), await pg.evaluate(() => [st.cuanto.ini, st.cuanto.yd]), (await estado(pg))[0]], ['¿Cuánto avanzó?', [30, 0], 'quien']); // eslint-disable-line no-undef
+  await enCancha(pg, 35); await pg.waitForTimeout(150);
+  assert.deepEqual([await jugada(pg, -1), await pg.evaluate(() => [st.partido.jugadas.at(-1).ini, st.partido.spot, st.partido.sabe])], [['pase', 'nicolas', 5, 'Cruce corto', null, 'rodrigo'], [30, 35, true]]); // eslint-disable-line no-undef
+  // hasta la zona: la jugada pasa a touchdown con su pulsera y sigue la conversión, a todo lo ancho
+  await toca(pg, 'res', 'pase'); await toca(pg, 'tq', 'nicolas'); await pulsera(pg, 25); await enCancha(pg, 50); await pg.waitForTimeout(150);
+  assert.deepEqual([await jugada(pg, -1), (await estado(pg))[0], await marcador(pg)], [['td', 'nicolas', 15, 'Poste de Z', null, 'mau'], 'conv', '6–0']);
+  assert.deepEqual(await pg.evaluate(CABE), []);
+  await toca(pg, 'conv', '1-1'); assert.deepEqual(await pg.evaluate(CABE), []); await toca(pg, 'convq', 'iker');
+  assert.deepEqual([await marcador(pg), await estado(pg)], ['7–0', [null, false, false, null, 7]]);
+  // defensa: sus seis botones y «Medio tiempo»; el campo no se enciende (no se miden yardas); la bandera pregunta quién y cómo fue en la misma pantalla
+  assert.match(await lado(pg), /Defensa/);
+  assert.deepEqual((await ve()).slice(5), [6, 'medio', true, false]);
+  assert.deepEqual(await pg.evaluate(CABE), []);
+  await toca(pg, 'res', 'bandera');
+  assert.match(await dice(pg, '#tel .hoja.tablero'), /Bandera[\s\S]*¿Quién quitó la bandera\?[\s\S]*¿Cómo fue la jugada\?[\s\S]*Pase[\s\S]*Corrida[\s\S]*Doble QB[\s\S]*No sé/);
+  assert.deepEqual([await pg.locator('#tel .hoja .rg-pmf, #tel .hoja .tb-pul').count(), (await ve())[8], await pg.evaluate(CABE)], [0, false, []]);
+  await toca(pg, 'tpr', 'doble'); await toca(pg, 'tq', 'mau');
+  assert.deepEqual([await jugada(pg, -1), await estado(pg)], [['bandera', 'mau', null, null, 'doble', null], [null, false, false, null, 8]]);
+  await toca(pg, 'res', 'bandera'); await toca(pg, 'tq', 'iker'); await toca(pg, 'tpr', ''); // «No sé»
+  assert.deepEqual([await jugada(pg, -1), await estado(pg)], [['bandera', 'iker', null, null, null, null], [null, false, false, null, 9]]);
+  await toca(pg, 'res', 'bandera'); await toca(pg, 'tq', 'iker'); await toca(pg, 'tok'); // la ✓: sin decir cómo fue, y ya no lo pregunta
+  assert.deepEqual([await jugada(pg, -1), await estado(pg)], [['bandera', 'iker', null, null, null, null], [null, false, false, null, 10]]);
+  // lo demás de defensa va paso a paso, cada pregunta a todo lo ancho; el medio tiempo se marca de un toque
+  await toca(pg, 'res', 'tapado'); assert.deepEqual([(await estado(pg)).slice(0, 2), await pg.evaluate(CABE)], [['quien', false], []]); await toca(pg, 'quien', 'mau');
+  await toca(pg, 'res', 'medio');
+  assert.deepEqual([(await jugada(pg, -2))[0], (await jugada(pg, -1))[0], (await estado(pg))[0]], ['tapado', 'medio', null]);
+  // «Lo que pasó» se toca para corregir, ahí mismo
+  await pg.locator('#tel .ip-lista [data-a=fila]').first().click(); await pg.waitForTimeout(150);
+  assert.deepEqual([(await estado(pg))[0], await pg.evaluate(CABE)], ['corrige', []]);
+  await equis(pg);
+  assert.deepEqual(pg.errores, []);
+  await pg.context().close();
+});
+
+test('iPad parado: una columna (campo, botones y la lista); las jugadas paso a paso llevan la pulsera junto a las yardas; al girarlo se reacomoda sin perder la jugada; el recorrido sigue como en el teléfono', async () => {
+  const pg = await ipad(false);
+  const ve = () => pg.evaluate(() => { const t = document.querySelector('#tel'), q = (s) => t.querySelector(s), r = (s) => q(s).getBoundingClientRect();
+    return [t.offsetWidth, t.querySelectorAll('.pant.ip').length, t.querySelectorAll('#cancha').length, t.querySelectorAll('[data-a=mas]').length, q('.ip-lista') ? (r('.ip-lista').top >= r('.mk-pag').bottom ? 'abajo' : r('.ip-lista').left >= r('.mk-pag').right ? 'al lado' : 'encimada') : null]; });
+  assert.deepEqual(await ve(), [820, 1, 1, 0, 'abajo']);
+  assert.deepEqual(await pg.evaluate(CABE), []);
+  // el tablero también cabe parado
+  await toca(pg, 'res', 'pase'); assert.deepEqual(await pg.evaluate(CABE), []);
+  await toca(pg, 'tq', 'nicolas'); await enCancha(pg, 11); await pulsera(pg, 13);
+  assert.deepEqual([await jugada(pg, -1), await estado(pg)], [['pase', 'nicolas', 6, 'Diagonales rápidas', null, 'mau'], [null, false, false, null, 1]]);
+  // incompleto: sus tres botones, y la pulsera después, cada pregunta a todo lo ancho
+  await toca(pg, 'res', 'incompleto'); assert.deepEqual([(await estado(pg))[0], await pg.evaluate(CABE)], ['inc', []]);
+  await toca(pg, 'inc', 'cayo'); assert.deepEqual([(await estado(pg)).slice(0, 2), await pg.evaluate(CABE)], [['quien', false], []]);
+  await toca(pg, 'quien', 'rodrigo'); assert.deepEqual([(await estado(pg))[0], await pg.evaluate(CABE)], ['jg', []]);
+  await pulsera(pg, 21, 'jg');
+  assert.deepEqual([await jugada(pg, -1), (await estado(pg))[0]], [['incompleto', 'rodrigo', null, 'Pantalla izquierda', null, 'mau'], null]);
+  // sack recibido: las yardas se miden en el campo de arriba (no hay otra cancha en la hoja) y no lleva pulsera
+  await toca(pg, 'res', 'sackr');
+  assert.deepEqual([(await estado(pg))[0], await pg.locator('#tel #cancha').count(), await pg.locator('#tel .hoja #cancha, #tel .hoja .desliza, #tel .hoja .tb-pul').count(), await pg.locator('#tel .ip-campo').evaluate((e) => e.classList.contains('activo')), await pg.evaluate(CABE)], ['cuanto', 1, 0, true, []]);
+  await enCancha(pg, 8); await toca(pg, 'rgok');
+  assert.deepEqual([await jugada(pg, -1), (await estado(pg))[0]], [['sackr', 'mau', -3, null, null, null], null]);
+  // touchdown: cómo fue, quién, y de dónde salió junto con la pulsera; el número guarda las dos cosas (se sabía dónde iba el balón) y sigue la conversión
+  await toca(pg, 'res', 'td'); assert.deepEqual(await pg.evaluate(CABE), []); await toca(pg, 'como', 'pase'); await toca(pg, 'quien', 'iker');
+  assert.deepEqual([(await estado(pg))[0], await pg.locator('#tel .hoja.ip-cuanto .tb-pul').count(), await pg.evaluate(() => st.cuanto.yd), await pg.evaluate(CABE)], ['cuanto', 1, 42, []]); // eslint-disable-line no-undef
+  await pulsera(pg, 24, 'jgya');
+  assert.deepEqual([await jugada(pg, -1), await estado(pg)], [['td', 'iker', 42, 'Corto y largo', null, 'mau'], ['conv', false, false, null, 4]]);
+  await toca(pg, 'conv', '0');
+  // intercepción lanzada: hasta dónde llegó y la pulsera; el número sin haber tocado el campo la deja sin marcar (sale de la 5, como con la ✕)
+  await ponLado(pg, 'O'); await toca(pg, 'res', 'int');
+  assert.deepEqual([(await estado(pg))[0], await pg.locator('#tel .hoja.ip-cuanto .tb-pul').count(), await pg.locator('#rgtit').innerText(), await pg.evaluate(CABE)], ['cuanto', 1, '¿Hasta dónde llegó?', []]);
+  await pulsera(pg, 33, 'jgya');
+  assert.deepEqual([await jugada(pg, -1), await pg.evaluate(() => st.partido.jugadas.at(-1).hasta ?? null), await estado(pg)], [['int', null, null, 'Z silencioso', null, 'mau'], null, [null, false, false, null, 5]]); // eslint-disable-line no-undef
+  // y midiéndola antes: el número guarda dónde quedó
+  await ponLado(pg, 'O'); await toca(pg, 'res', 'int'); await enCancha(pg, 30); await pulsera(pg, 34, 'jgya');
+  assert.deepEqual([await pg.evaluate(() => { const j = st.partido.jugadas.at(-1); return [j.k, j.hasta, j.jg]; }), (await estado(pg))[0]], [['int', 20, 'Corre y lanza'], null]); // eslint-disable-line no-undef
+  // girar el iPad: botones y lista quedan lado a lado y el campo se dibuja a su nueva medida
+  await ponLado(pg, 'O');
+  await pg.setViewportSize({ width: 1180, height: 820 }); await pg.waitForTimeout(400);
+  assert.deepEqual([await ve(), await pg.evaluate(CABE)], [[1180, 1, 1, 0, 'al lado'], []]);
+  // con una jugada a medias: al girar de regreso sigue abierta con lo que ya tenía
+  await toca(pg, 'res', 'corrida'); await toca(pg, 'tq', 'iker'); await enCancha(pg, 17);
+  const medias = () => pg.evaluate(() => [st.hoja, st.tab.id, st.cuanto.yd]); // eslint-disable-line no-undef
+  const antes = await medias();
+  await pg.setViewportSize({ width: 820, height: 1180 }); await pg.waitForTimeout(400);
+  assert.deepEqual([await medias(), await pg.evaluate(CABE), await pg.locator('#rgv').innerText()], [antes, [], `+${antes[2]}yd`]);
+  await pulsera(pg, 14);
+  assert.deepEqual([(await jugada(pg, -1)).slice(0, 4), (await estado(pg))[0]], [['corrida', 'iker', antes[2], 'Regresos cortos'], null]);
+  // el recorrido de práctica enseña el acomodo del teléfono: mientras dura, Marcar va como en el teléfono
+  await pg.evaluate(() => { st.practicando = true; pintar(); }); // eslint-disable-line no-undef
+  assert.deepEqual(await pg.evaluate(() => [document.querySelectorAll('#tel .pant.ip').length, document.querySelector('#tel').offsetWidth, document.querySelectorAll('#tel [data-a=mas]').length]), [0, 430, 1]);
+  await pg.evaluate(() => { st.practicando = false; pintar(); }); // eslint-disable-line no-undef
+  assert.deepEqual((await ve()).slice(0, 2), [820, 1]);
+  assert.deepEqual(pg.errores, []);
+  await pg.context().close();
 });
