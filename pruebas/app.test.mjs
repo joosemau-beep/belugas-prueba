@@ -55,13 +55,13 @@ test('un partido completo: cada jugada, deshacer, recargar, terminar y las cuent
   await toca(pg, 'conv', '1-1'); await toca(pg, 'convq', 'rodrigo');
   await paso('7–0', /Defensa/); // el TD pasa el balón
   // defensa
-  await toca(pg, 'res', 'bandera'); await toca(pg, 'quien', 'pepe'); await toca(pg, 'sinyd');
+  await toca(pg, 'res', 'bandera'); await toca(pg, 'pr', ''); await toca(pg, 'quien', 'pepe'); await toca(pg, 'sinyd');
   await toca(pg, 'res', 'tapado'); // «Pase tapado» va directo a quién lo tapó
   assert.equal(await pg.locator('#tel [data-a="quien"][data-v="luis"]').count(), 0); // Luis no vino: no sale
   await toca(pg, 'quien', 'mau');
   await vieja({ k: 'presion', id: 'nico' }); await vieja({ k: 'fallo' });
   await toca(pg, 'res', 'sack'); await toca(pg, 'quien', 'rodrigo');
-  await toca(pg, 'tdr'); await toca(pg, 'conv', '2-1');
+  await toca(pg, 'tdr'); await toca(pg, 'pr', ''); await toca(pg, 'conv', '2-1');
   await paso('7–8', /Ataque/);
   await toca(pg, 'res', 'int');
   await paso('7–8', /Defensa/);
@@ -149,7 +149,7 @@ test('dos celulares marcan el mismo partido', async () => {
   await b.waitForSelector('text=desde otro celular');
   await toca(b, 'marcar');
   assert.equal(await marcador(b), '6–0');
-  await toca(b, 'tdr'); await toca(b, 'conv', '1-1');
+  await toca(b, 'tdr'); await toca(b, 'pr', ''); await toca(b, 'conv', '1-1');
   await a.waitForFunction(() => st.partido && st.partido.ellos === 7, null, { timeout: 10000 }); // eslint-disable-line no-undef
   await toca(a, 'terminar');
   await b.waitForFunction(() => !st.partido && st.pant === 'resumen', null, { timeout: 10000 }); // eslint-disable-line no-undef
@@ -174,7 +174,7 @@ test('corregir un partido que ya se jugó (borrar, cambiar, agregar en su lugar,
   await juega(pg, 'kaffies', ['mau', 'nico', 'rodrigo'], async () => {
     await td(pg, 'pase', 'nico'); await toca(pg, 'lado', 'O');
     await toca(pg, 'res', 'corrida'); await toca(pg, 'quien', 'rodrigo'); await toca(pg, 'sinyd');
-    await toca(pg, 'lado', 'D'); await toca(pg, 'tdr'); await toca(pg, 'conv', '0');
+    await toca(pg, 'lado', 'D'); await toca(pg, 'tdr'); await toca(pg, 'pr', ''); await toca(pg, 'conv', '0');
   });
   await juega(pg, 'panini', ['mau', 'nico', 'rodrigo'], () => td(pg, 'corrida', 'rodrigo'));
   assert.equal(await pg.evaluate(() => RECORD), '6–1–1'); // eslint-disable-line no-undef
@@ -405,7 +405,7 @@ test('las pantallas: quiénes vinieron, sin rebote, Marcar con guantes, ✓ y �
   assert.equal(await pg.evaluate(() => st.partido.cambios.length), cambios); // eslint-disable-line no-undef
   // sin textos de ayuda: el incompleto solo trae sus opciones (y su ✕)
   await toca(pg, 'res', 'incompleto');
-  assert.deepEqual([await pg.locator('.hoja p, .hoja h3').count(), await pg.locator('.hoja .hb.no').count(), await pg.locator('.hoja .op').allInnerTexts()], [0, 1, ['Mal pase', 'Incompleto', 'La soltó']]);
+  assert.deepEqual([await pg.locator('.hoja p, .hoja h3').count(), await pg.locator('.hoja .hb.no').count(), await pg.locator('.hoja .op').allInnerTexts()], [0, 1, ['Mal pase\nle resta al QB', 'Incompleto\nnadie pierde', 'La soltó\nle resta al receptor']]);
   await pg.locator('.hb.no').click(); await pg.waitForTimeout(150);
   await toca(pg, 'res', 'pase'); assert.equal(await pg.locator('.hoja .pdt').count(), 0); assert.doesNotMatch(await pg.locator('.hoja').innerText(), /1ª y 10/);
   await pg.locator('.hb.no').click(); await pg.waitForTimeout(150);
@@ -572,7 +572,7 @@ test('la 1ª y 10 no sale en ninguna pantalla, aunque una jugada vieja la traiga
   await agrega(pg, ['Mau', 'Nico']);
   await toca(pg, 'empezar'); await toca(pg, 'rival', 'kaffies'); await toca(pg, 'vantoggle', 'mau'); await toca(pg, 'vantoggle', 'nico'); await toca(pg, 'vanlisto');
   await toca(pg, 'res', 'pase'); await toca(pg, 'quien', 'nico'); await toca(pg, 'sinyd');
-  await toca(pg, 'lado', 'D'); await toca(pg, 'res', 'bandera'); await toca(pg, 'quien', 'mau'); await toca(pg, 'sinyd');
+  await toca(pg, 'lado', 'D'); await toca(pg, 'res', 'bandera'); await toca(pg, 'pr', ''); await toca(pg, 'quien', 'mau'); await toca(pg, 'sinyd');
   await pg.evaluate(() => { const p = st.partido; p.jugadas.forEach((j) => { j.pd = true; }); rehacer(p); pintar(); }); // eslint-disable-line no-undef
   const sinPd = async (donde) => assert.doesNotMatch(await pg.evaluate(() => document.querySelector('#tel').textContent), /1ª|primeros? y diez/i, donde);
   await sinPd('Marcar');
@@ -655,7 +655,7 @@ test('cómo funciona la app: desde «¿Quién es el QB?» a media partida, sin t
   assert.equal(JSON.stringify(nube.db), nube0);
   assert.equal(await marcador(pg), '6–0');
   // y se sigue marcando como siempre
-  await toca(pg, 'res', 'bandera'); await toca(pg, 'quien', 'mau'); await toca(pg, 'sinyd'); // después del TD vamos en defensa
+  await toca(pg, 'res', 'bandera'); await toca(pg, 'pr', ''); await toca(pg, 'quien', 'mau'); await toca(pg, 'sinyd'); // después del TD vamos en defensa
   await pg.waitForFunction(() => !st.toast); // eslint-disable-line no-undef
   await pg.waitForTimeout(1000);
   assert.equal(nube.db[clave + '-vivo'].datos.partido.jugadas.length, 3);
@@ -729,7 +729,7 @@ test('el lado de cada jugador agrupa «¿Quién?» y viaja a la nube y al otro c
     [['nico', true, false], ['pepe', true, false], ['mau', false, false], ['rodrigo', false, false]]);
   assert.equal(await a.locator('.hoja .lados').evaluate((x) => x.style.getPropertyValue('--rc')), await a.evaluate(() => R('panini').color)); // eslint-disable-line no-undef
   await toca(a, 'quien', 'nico'); await toca(a, 'sinyd');
-  await toca(a, 'lado', 'D'); await toca(a, 'res', 'bandera');
+  await toca(a, 'lado', 'D'); await toca(a, 'res', 'bandera'); await toca(a, 'pr', '');
   assert.deepEqual(await quien(), ['DEFENSA', 'pepe', 'ATAQUE', 'nico', 'LOS DOS', 'mau', 'rodrigo']);
   await toca(a, 'quien', 'pepe'); await toca(a, 'sinyd');
   // Corregir la corrida (de ataque): también por grupos, Ataque primero
@@ -939,7 +939,7 @@ test('El partido en 4 números y Mi partido, con lo que se toca (8 partidos)', a
   // Mi partido: Iker vs Panini, con su lugar y su promedio, y «Cómo sumó sus puntos» siempre abierto y con palabras
   await pg.evaluate(() => { A.juego('g6'); pintar(); A.jugp('iker'); pintar(); }); // eslint-disable-line no-undef
   const m = await texto(pg);
-  assert.match(m, /PUNTOS DEL PARTIDO 21.2 1º de 12 · tu promedio es 8.4/); assert.match(m, /vs Panini · 16 nov Victoria 22–17/);
+  assert.match(m, /PUNTOS DEL PARTIDO 21.2 1º de 12 · tu promedio es 8.5/); assert.match(m, /vs Panini · 16 nov Victoria 22–17/);
   assert.match(m, /CÓMO SUMÓ SUS PUNTOS Recepciones 1 \+1 Yardas atrapadas 12 \+1.2 TD 2 \+12 Banderas 1 \+2 INT 1 \+5 Total 21.2/);
   await pg.evaluate(() => { A.juego('g6'); pintar(); A.jugp('mau'); pintar(); }); // eslint-disable-line no-undef
   assert.match(await texto(pg), /PUNTOS DEL PARTIDO 4.8 6º de 12 · tu promedio es 8.9 COMPLETOS 4\/8 YD DE PASE 30 TD DE PASE 1/);
@@ -998,16 +998,16 @@ test('Mi temporada: Cómo voy, Lo mío, Partido a partido, Mi jugada más larga 
   const pg = await telefono(srv.url); await sembrar(pg);
   await abreJug(pg, 'nicolas'); await abreMas(pg);
   const t = await texto(pg);
-  assert.match(t, /NICOLÁS PUNTOS DE LA TEMPORADA 76.9 LUGAR 1º PROMEDIO 9.6 MEJOR 36.7/);
-  assert.match(t, /Lo mío Recepciones 15 1º de 9 Yd\/recepción 18.9yd 2º de 5 Manos seguras 88% 4º de 5 Más El punto de cada barra es el promedio del equipo: recepciones 5.1 · Yd\/recepción 18.5 yd · manos seguras 93%. Manos seguras: 15 de 17 pases que le llegaron. Su mejor partido: 36.7 puntos vs Lobos · 2 nov. Para entrar al lugar en porcentajes y promedios hacen falta 5 intentos./);
-  assert.match(t, /Partido a partido 5.9 KAF 1.9 ONF 3.4 AZT −1 KAF 36.7 LOB 10.7 BUC 6.8 PAN 12.5 KAF puntos por partido/);
+  assert.match(t, /NICOLÁS PUNTOS DE LA TEMPORADA 77.9 LUGAR 1º PROMEDIO 9.7 MEJOR 37.2/);
+  assert.match(t, /Lo mío Recepciones 15 1º de 9 Yd\/recepción 18.9yd 2º de 5 Manos seguras 88% 4º de 5 Más El punto de cada barra es el promedio del equipo: recepciones 5.1 · Yd\/recepción 18.5 yd · manos seguras 93%. Manos seguras: 15 de 17 pases que le llegaron. Su mejor partido: 37.2 puntos vs Lobos · 2 nov. Para entrar al lugar en porcentajes y promedios hacen falta 5 intentos./);
+  assert.match(t, /Partido a partido 5.9 KAF 1.9 ONF 3.4 AZT −0.5 KAF 37.2 LOB 10.7 BUC 6.8 PAN 12.5 KAF puntos por partido/);
   assert.match(t, /Mi jugada más larga 45yd Pase de José · TD vs Lobos · 2 nov Más Las que siguen: 40 yd \(Pase de Mau · TD, vs Lobos\)/);
   assert.match(t, /Conexiones De Mau 238 yd · 4 TD 14 pases De José 45 yd · 1 TD 1 pase A Mario 15 yd 1 pase/);
   assert.doesNotMatch(t, /Partido por partido|Yardas atrapadas|puntos 1º del equipo/);
   // el último partido entero y los anteriores tenues; la columna tocada enseña su partido
   assert.deepEqual(await pg.locator('.col i').evaluateAll((xs) => xs.map((i) => getComputedStyle(i).opacity)), [...Array(7).fill('0.38'), '1']);
   await pg.locator('.col').nth(4).click(); await pg.waitForTimeout(100);
-  assert.equal(await tip(pg), 'vs Lobos · 2 nov 36.7 pts 33–12 · Victoria Ver partido ›');
+  assert.equal(await tip(pg), 'vs Lobos · 2 nov 37.2 pts 33–12 · Victoria Ver partido ›');
   // el punto del promedio: al tocarlo, «prom. 5.1»; la barra: su etiqueta con el lugar y el promedio, y se toca en 44 px aunque mida 8
   await pg.locator('.prom').first().click(); await pg.waitForTimeout(250);
   assert.deepEqual(await pg.locator('.prom').first().evaluate((p) => [p.classList.contains('on'), getComputedStyle(p, '::after').content, getComputedStyle(p, '::after').opacity]), [true, '"prom. 5.1"', '1']);
@@ -1278,8 +1278,8 @@ test('los textos de los widgets siguen la regla: Yd/recepción, Lugar · Promedi
   const pg = await telefono(srv.url); await sembrar(pg);
   await abreJug(pg, 'nicolas'); await abreMas(pg);
   let t = await texto(pg);
-  assert.match(t, /LUGAR 1º PROMEDIO 9.6 MEJOR 36.7 /); assert.doesNotMatch(t, /MEJOR · |Yd por|Me la lanzó/); // el código LOB solo bajo las columnas
-  assert.match(t, /Yd\/recepción 18.9yd 2º de 5/); assert.match(t, /Yd\/recepción 18.5 yd/); assert.match(t, /Su mejor partido: 36.7 puntos vs Lobos · 2 nov\./);
+  assert.match(t, /LUGAR 1º PROMEDIO 9.7 MEJOR 37.2 /); assert.doesNotMatch(t, /MEJOR · |Yd por|Me la lanzó/); // el código LOB solo bajo las columnas
+  assert.match(t, /Yd\/recepción 18.9yd 2º de 5/); assert.match(t, /Yd\/recepción 18.5 yd/); assert.match(t, /Su mejor partido: 37.2 puntos vs Lobos · 2 nov\./);
   assert.match(t, /Mi jugada más larga 45yd Pase de José · TD vs Lobos · 2 nov Más Las que siguen: 40 yd \(Pase de Mau · TD, vs Lobos\)/);
   await abreJug(pg, 'rodrigo'); assert.match(await texto(pg), /Yd\/corrida 9.4yd/); assert.match(await texto(pg), /Mi jugada más larga 40yd Corriendo · TD/);
   await abreJug(pg, 'mau'); assert.match(await texto(pg), /Yd\/intento 11.2yd/);
@@ -1379,14 +1379,29 @@ test('fantasy del 24-nov: el mal pase le quita 0.5 al QB (solo el marcado así),
   const pts = (x) => pg.evaluate((x) => puntosDe(x), x); // eslint-disable-line no-undef
   assert.deepEqual([await pts({ malp: 1 }), await pts({ drop: 1 }), await pts({ mvp: 1 }), await pts({ malp: 2, drop: 1, mvp: 1, rec: 1 })], [-0.5, -1, 3, 2]);
   // el partido nuevo, a mano: Mau 15 yd de pase (0.6) + TD de pase 4 + conversión 2 − INT 2 − mal pase 0.5 = 4.1; Nicolás 2 rec + 16 yd + TD − soltado 1 = 8.6; Iker 1 rec − 0.1 + conv 2 + bandera 2 = 4.9
-  await siembra(pg, [['lobos-its', 18, NVO]]);
+  await siembra(pg, [['lobos-its', 25, NVO]]);
   assert.deepEqual(await ptsDe(pg, ['mau', 'nicolas', 'iker']), [4.1, 8.6, 4.9]);
+  // soltarla: −1 en los partidos del 24-nov en adelante; en los ya marcados sigue en −0.5 mientras Mau decide (Panini, 16-nov: Juancho 1 rec + 0.6 yd + safety 3 + bandera 2 + conversión 1 − soltado 0.5 = 7.1)
+  await siembra(pg);
+  const juancho = () => pg.evaluate(() => { const x = JUEGOS.find((g) => g.rival === 'panini').st.juancho; return [x.drop || 0, x.dropv || 0, puntosDe(x)]; }); // eslint-disable-line no-undef
+  assert.deepEqual(await juancho(), [0, 1, 7.1]);
+  assert.deepEqual(await pg.evaluate(() => [SOLTADO_ANTES, new Date(SOLTADO_DESDE).toDateString()]), [-0.5, 'Tue Nov 24 2026']); // eslint-disable-line no-undef
+  await toca(pg, 'ir', 'jugadores'); await pg.evaluate(() => { document.querySelector('.reglas').open = true; });
+  assert.match(await texto(pg), /Pase soltado −1 Pase soltado, partidos de antes del 24-nov −0.5 /);
+  await pg.evaluate(() => { const g = Object.values(T.juegos).find((x) => x.rival === 'panini'); g.dia = new Date(2026, 10, 30, 12).getTime(); g.mvp = 'jaime'; g.mvpVer = 1; T.plantel.find((x) => x.id === 'jaime').baja = true; recalcular(); A.juego(g.id); pintar(); }); // eslint-disable-line no-undef
+  assert.deepEqual(await juancho(), [0, 1, 7.1]); // se marcó el 16-nov: aunque la fecha se corrija al 30, sigue en −0.5
+  assert.match(await texto(pg), /MVP votado Jaime · \+3 puntos Cambiar/); // se dio de baja: su voto se ve y se puede quitar
+  await pg.evaluate(() => { const g = Object.values(T.juegos).find((x) => x.rival === 'panini'); delete g.mvp; T.plantel.find((x) => x.id === 'jaime').baja = false; recalcular(); A.ir('jugadores'); pintar(); document.querySelector('.reglas').open = true; }); // eslint-disable-line no-undef
+  // el interruptor (SOLTADO_ANTES en −1): también los partidos ya marcados restan 1 y el renglón «de antes» se va de la tabla
+  await pg.evaluate(() => { PUNTOS.find(([k]) => k === 'dropv')[2] = -1; recalcular(); pintar(); document.querySelector('.reglas').open = true; }); // eslint-disable-line no-undef
+  assert.deepEqual(await juancho(), [0, 1, 6.6]); assert.doesNotMatch(await texto(pg), /partidos de antes del 24-nov/);
+  await pg.evaluate(() => { PUNTOS.find(([k]) => k === 'dropv')[2] = -0.5; }); // eslint-disable-line no-undef
   // los incompletos de antes (sin «mal») no le restan al QB: en Panini y Kaffies hubo 2 incompletos que nadie soltó y ninguno es mal pase
   await siembra(pg);
   assert.deepEqual(await pg.evaluate(() => [TEMP.mau.malp, JUEGOS.filter((g) => !g.solo).reduce((a, g) => a + g.partido.jugadas.filter((j) => j.k === 'incompleto' && !j.drop).length, 0)]), [0, 2]); // eslint-disable-line no-undef
   await toca(pg, 'ir', 'jugadores'); await pg.evaluate(() => { document.querySelector('.reglas').open = true; });
   const t = await texto(pg);
-  assert.match(t, /Mal pase \(QB\) −0.5 Pase soltado −1 /); assert.match(t, /VOTACIÓN DEL EQUIPO MVP del partido \+3/);
+  assert.match(t, /Mal pase \(QB\) −0.5 Pase soltado −1 Pase soltado, partidos de antes del 24-nov −0.5 /); assert.match(t, /VOTACIÓN DEL EQUIPO MVP del partido \+3/);
   assert.match(t, /el mal pase le resta al QB y soltarla le resta al receptor; el incompleto sin culpa de nadie no resta/);
   assert.deepEqual(pg.errores, []);
   await pg.context().close();
@@ -1397,14 +1412,15 @@ test('«Incompleto» abre tres botones: Mal pase (QB), Incompleto (nadie pierde)
   await agrega(pg, ['Mau', 'Nico']);
   await toca(pg, 'marcar'); await toca(pg, 'rival', 'panini'); for (const id of ['mau', 'nico']) await toca(pg, 'vantoggle', id); await toca(pg, 'vanlisto');
   await toca(pg, 'res', 'incompleto');
-  assert.deepEqual(await pg.locator('.hoja .ops.tres .op').allInnerTexts(), ['Mal pase', 'Incompleto', 'La soltó']);
+  assert.deepEqual((await pg.locator('.hoja .ops.inc3 .op').allInnerTexts()).map((x) => x.replace(/\s+/g, ' ')), ['Mal pase le resta al QB', 'Incompleto nadie pierde', 'La soltó le resta al receptor']);
+  assert.deepEqual(await pg.locator('.hoja .ops.inc3 .op').evaluateAll((xs) => new Set(xs.map((x) => getComputedStyle(x).backgroundColor)).size), 3); // cada uno de su color
   await toca(pg, 'inc', 'mal'); await toca(pg, 'res', 'incompleto'); await toca(pg, 'inc', 'inc');
   await toca(pg, 'res', 'incompleto'); await toca(pg, 'inc', 'cayo'); assert.match(await texto(pg), /¿Quién soltó el pase\?/); await toca(pg, 'quien', 'nico');
   const js = () => pg.evaluate(() => st.partido.jugadas.map((j) => [j.k, !!j.mal, !!j.drop, j.id, j.qb, j.txt])); // eslint-disable-line no-undef
   assert.deepEqual(await js(), [['incompleto', true, false, null, 'mau', 'mal pase de Mau'], ['incompleto', false, false, null, 'mau', 'pase incompleto'], ['incompleto', false, true, 'nico', 'mau', 'pase soltado por Nico']]);
   // Corregir: el mal pase pasa a incompleto a secas (ya no resta) y el incompleto a «La soltó», que pide quién
   await fila(pg, 0); assert.match(await texto(pg), /Incompleto Mal pase Cambiar/); await toca(pg, 'cinc');
-  assert.equal(await pg.locator('.hoja .ops.tres .op.prim').innerText(), 'Mal pase'); await toca(pg, 'inc', 'inc');
+  assert.match(await pg.locator('.hoja .ops.inc3 .op.actual').innerText(), /^Mal pase/); await toca(pg, 'inc', 'inc');
   await fila(pg, 1); await toca(pg, 'cinc'); await toca(pg, 'inc', 'cayo'); assert.match(await texto(pg), /Incompleto La soltó Cambiar/); await toca(pg, 'cquien', 'mau');
   assert.deepEqual((await js()).map((x) => x.slice(1, 4)), [[false, false, null], [false, true, 'mau'], [false, true, 'nico']]);
   await fila(pg, 1); await toca(pg, 'cinc'); await toca(pg, 'inc', 'mal');
@@ -1415,55 +1431,64 @@ test('«Incompleto» abre tres botones: Mal pase (QB), Incompleto (nadie pierde)
   await pg.context().close();
 });
 
-test('la jugada de la pulsera: un toque con su número o «No sé», va en la jugada, se cambia en Corregir y sin libro no se pregunta', async () => {
+test('la jugada de la pulsera: es lo último de la jugada, un toque con su número o «No sé»; se cambia en Corregir y sin libro no se pregunta', async () => {
   const pg = await telefono(srv.url);
   await agrega(pg, ['Mau', 'Nico']);
   await toca(pg, 'marcar'); await toca(pg, 'rival', 'panini'); for (const id of ['mau', 'nico']) await toca(pg, 'vantoggle', id); await toca(pg, 'vanlisto');
-  // sin libro de jugadas, como hasta hoy: derecho a «¿Quién?»
-  await toca(pg, 'res', 'pase'); assert.match(await texto(pg), /¿Quién la atrapó\?/); await cierra(pg);
+  const hoja = () => pg.evaluate(() => st.hoja), equis = async () => { await pg.locator('.hoja .hb.no').click(); await pg.waitForTimeout(150); }; // eslint-disable-line no-undef
+  // sin libro de jugadas, como hasta hoy: la jugada se cierra sin preguntar
+  await toca(pg, 'res', 'pase'); await toca(pg, 'quien', 'nico'); await toca(pg, 'sinyd'); assert.equal(await hoja(), null);
   await ponLibro(pg);
-  await toca(pg, 'res', 'pase');
+  // pase: quién, yardas y, para cerrar, la pulsera
+  await toca(pg, 'res', 'pase'); assert.match(await texto(pg), /¿Quién la atrapó\?/); await toca(pg, 'quien', 'nico'); assert.equal(await hoja(), 'cuanto'); await salto(pg, 5); await toca(pg, 'rgok');
   assert.match(await texto(pg), /¿Qué jugada fue\? 1 · RÁPIDAS 11 12 13 14 2 · DE AVANCE 21 22 23 24 25 3 · ENGAÑOS 31 32 33 34 No sé/);
-  await toca(pg, 'jg', 'Cruce corto'); await toca(pg, 'quien', 'nico'); await toca(pg, 'sinyd');
-  await toca(pg, 'res', 'corrida'); await toca(pg, 'jg', ''); await toca(pg, 'quien', 'nico'); await toca(pg, 'sinyd'); // «No sé»
-  await toca(pg, 'res', 'int'); await toca(pg, 'jg', 'Poste de Z'); // la intercepción se guarda en cuanto se dice la jugada
-  await toca(pg, 'lado', 'O'); await toca(pg, 'res', 'incompleto'); await toca(pg, 'jg', 'Falso QB'); await toca(pg, 'inc', 'mal');
-  await toca(pg, 'res', 'td'); await toca(pg, 'jg', 'Z cierra'); await toca(pg, 'como', 'pase'); await toca(pg, 'quien', 'nico'); await toca(pg, 'sinyd'); await toca(pg, 'conv', '0');
-  // en defensa y en lo que no es jugada de la pulsera (sack recibido) no se pregunta
-  await toca(pg, 'res', 'bandera'); assert.match(await texto(pg), /¿Quién quitó la bandera\?/); await cierra(pg);
-  await toca(pg, 'lado', 'O'); await toca(pg, 'res', 'sackr'); await toca(pg, 'sinyd');
+  await toca(pg, 'jg', 'Cruce corto'); assert.equal(await hoja(), null);
+  await toca(pg, 'res', 'corrida'); await toca(pg, 'quien', 'nico'); await toca(pg, 'sinyd'); await toca(pg, 'jg', ''); assert.equal(await hoja(), null); // «No sé»
+  await toca(pg, 'res', 'int'); assert.equal(await hoja(), 'jg'); await toca(pg, 'jg', 'Poste de Z'); // la intercepción ya quedó guardada: solo falta la pulsera
+  await toca(pg, 'lado', 'O'); await toca(pg, 'res', 'incompleto'); await toca(pg, 'inc', 'mal'); await toca(pg, 'jg', 'Falso QB');
+  // TD: cómo, quién, yardas, conversión y al final la pulsera
+  await toca(pg, 'res', 'td'); await toca(pg, 'como', 'pase'); await toca(pg, 'quien', 'nico'); await toca(pg, 'sinyd'); assert.equal(await hoja(), 'conv'); await toca(pg, 'conv', '0'); assert.equal(await hoja(), 'jg'); await toca(pg, 'jg', 'Z cierra');
+  // la ✕ deja la jugada guardada sin pulsera (se pone después en Corregir); en el sack recibido y en defensa no se pregunta
+  await toca(pg, 'lado', 'O'); await toca(pg, 'res', 'pase'); await toca(pg, 'quien', 'nico'); await toca(pg, 'sinyd'); assert.equal(await hoja(), 'jg'); await equis(); assert.equal(await hoja(), null);
+  await toca(pg, 'res', 'sackr'); await toca(pg, 'sinyd'); assert.equal(await hoja(), null);
+  await toca(pg, 'lado', 'D'); await toca(pg, 'res', 'tapado'); await toca(pg, 'quien', 'nico'); assert.equal(await hoja(), null); await toca(pg, 'lado', 'O');
   const js = () => pg.evaluate(() => st.partido.jugadas.map((j) => [j.k, j.jg || null, j.jgg || null])); // eslint-disable-line no-undef
-  assert.deepEqual(await js(), [['pase', 'Cruce corto', 'Rápidas'], ['corrida', null, null], ['int', 'Poste de Z', 'De avance'], ['incompleto', 'Falso QB', 'Engaños'], ['td', 'Z cierra', 'Engaños'], ['sackr', null, null]]);
-  // Corregir: dice cuál fue con su número y se cambia; «No sé» la quita
-  await fila(pg, 0); assert.match(await texto(pg), /Jugada de la pulsera 12 · Cruce corto Cambiar/); await toca(pg, 'cjg');
-  assert.equal(await pg.locator('.hoja .jgn .op.prim').innerText(), '12'); await toca(pg, 'jg', 'Pantalla rápida');
-  await fila(pg, 1); assert.match(await texto(pg), /Jugada de la pulsera No sé Cambiar/); await toca(pg, 'cjg'); await toca(pg, 'jg', 'Corre y lanza');
-  await fila(pg, 2); await toca(pg, 'cjg'); await toca(pg, 'jg', '');
-  assert.deepEqual((await js()).slice(0, 3), [['pase', 'Pantalla rápida', 'Rápidas'], ['corrida', 'Corre y lanza', 'Engaños'], ['int', null, null]]);
+  assert.deepEqual(await js(), [['pase', null, null], ['pase', 'Cruce corto', 'Rápidas'], ['corrida', null, null], ['int', 'Poste de Z', 'De avance'], ['incompleto', 'Falso QB', 'Engaños'], ['td', 'Z cierra', 'Engaños'], ['pase', null, null], ['sackr', null, null], ['tapado', null, null]]);
+  // Corregir: dice cuál fue con su número y se cambia; «No sé» la quita; a la que se le fue, se le pone
+  await fila(pg, 1); assert.match(await texto(pg), /Jugada de la pulsera 12 · Cruce corto Cambiar/); await toca(pg, 'cjg');
+  assert.equal(await pg.locator('.hoja .jgn .op.prim').innerText(), '12'); await toca(pg, 'jg', 'Pantalla rápida'); assert.equal(await hoja(), null);
+  await fila(pg, 2); assert.match(await texto(pg), /Jugada de la pulsera No sé Cambiar/); await toca(pg, 'cjg'); await toca(pg, 'jg', 'Corre y lanza');
+  await fila(pg, 3); await toca(pg, 'cjg'); await toca(pg, 'jg', '');
+  await fila(pg, 6); await toca(pg, 'cjg'); await toca(pg, 'jg', 'Regresos cortos');
+  assert.deepEqual([...(await js()).slice(1, 4), (await js())[6]], [['pase', 'Pantalla rápida', 'Rápidas'], ['corrida', 'Corre y lanza', 'Engaños'], ['int', null, null], ['pase', 'Regresos cortos', 'Rápidas']]);
+  // deshacer la jugada desde el aviso con sus yardas abiertas: ya no hay a quién preguntarle la pulsera
+  await toca(pg, 'res', 'pase'); await toca(pg, 'quien', 'nico'); await pg.evaluate(() => { A.deshacer('aviso'); pintar(); }); await toca(pg, 'mkver', 'paso'); assert.equal(await hoja(), null); // eslint-disable-line no-undef
   // recargar no la pierde (viaja en lo que se guarda y se manda)
   await pg.reload(); await pg.waitForSelector('#tel .nav');
-  assert.deepEqual((await js())[0], ['pase', 'Pantalla rápida', 'Rápidas']);
+  assert.deepEqual((await js())[1], ['pase', 'Pantalla rápida', 'Rápidas']);
   assert.deepEqual(pg.errores, []);
   await pg.context().close();
 });
 
-test('en defensa, «¿pase o corrida?» en la bandera y en el TD del rival: dos botones que se pueden saltar, y en Corregir', async () => {
+test('en defensa, «¿pase o corrida?» antes de «¿Quién?» en la bandera y antes de guardar el TD del rival, con «No sé»; se cambia en Corregir', async () => {
   const pg = await telefono(srv.url);
   await agrega(pg, ['Mau', 'Nico']);
   await toca(pg, 'marcar'); await toca(pg, 'rival', 'panini'); for (const id of ['mau', 'nico']) await toca(pg, 'vantoggle', id); await toca(pg, 'vanlisto');
   await toca(pg, 'lado', 'D');
-  await toca(pg, 'res', 'bandera'); await toca(pg, 'quien', 'nico');
-  assert.match(await texto(pg), /¿Cuánto avanzó\?.*¿FUE PASE O CORRIDA\? Pase Corrida/);
-  await toca(pg, 'pr', 'pase'); assert.equal(await pg.locator('.hoja .op.prim').innerText(), 'Pase'); await salto(pg, 5); await toca(pg, 'rgok');
-  await toca(pg, 'res', 'bandera'); await toca(pg, 'quien', 'mau'); await toca(pg, 'pr', 'corrida'); await toca(pg, 'pr', 'corrida'); await toca(pg, 'sinyd'); // encender y apagar: queda sin dato
-  await toca(pg, 'res', 'bandera'); await toca(pg, 'quien', 'mau'); await toca(pg, 'sinyd'); // saltarlo
-  await toca(pg, 'tdr'); assert.match(await texto(pg), /Conversión de PAN EL TD, ¿FUE PASE O CORRIDA\? Pase Corrida Y LA CONVERSIÓN De 1/);
-  await toca(pg, 'pr', 'corrida'); await toca(pg, 'conv', '1-1');
+  await toca(pg, 'res', 'bandera');
+  assert.match(await texto(pg), /¿Fue pase o corrida\? Pase Corrida No sé/);
+  await toca(pg, 'pr', 'pase'); assert.match(await texto(pg), /¿Quién quitó la bandera\?/); await toca(pg, 'quien', 'nico'); await salto(pg, 5); await toca(pg, 'rgok');
+  await toca(pg, 'res', 'bandera'); await toca(pg, 'pr', ''); await toca(pg, 'quien', 'mau'); await toca(pg, 'sinyd'); // «No sé»
+  await toca(pg, 'res', 'bandera'); await pg.locator('.hoja .hb.no').click(); await pg.waitForTimeout(150); // la ✕ no guarda nada
+  await toca(pg, 'res', 'bandera'); await toca(pg, 'pr', 'corrida'); await pg.locator('.hoja .hb.no').click(); await pg.waitForTimeout(150); // ni cerrando en «¿Quién?»
+  await toca(pg, 'res', 'tapado'); await toca(pg, 'quien', 'mau'); // la respuesta que se quedó a medias no se le pega a otra jugada
+  await toca(pg, 'tdr'); assert.match(await texto(pg), /¿Fue pase o corrida\? Pase Corrida No sé/); await toca(pg, 'pr', 'corrida'); assert.match(await texto(pg), /Conversión de PAN De 1/); await toca(pg, 'conv', '1-1');
   const js = () => pg.evaluate(() => st.partido.jugadas.map((j) => [j.k, j.pr || null, j.yd ?? null])); // eslint-disable-line no-undef
-  assert.deepEqual(await js(), [['bandera', 'pase', 5], ['bandera', null, null], ['bandera', null, null], ['tdr', 'corrida', null]]);
+  assert.deepEqual(await js(), [['bandera', 'pase', 5], ['bandera', null, null], ['tapado', null, null], ['tdr', 'corrida', null]]);
   assert.equal(await marcador(pg), '0–7');
-  await fila(pg, 2); assert.match(await texto(pg), /¿FUE PASE O CORRIDA\? Pase Corrida/); await toca(pg, 'pr', 'pase'); await cierra(pg);
-  assert.deepEqual((await js())[2], ['bandera', 'pase', null]);
+  await fila(pg, 1); assert.match(await texto(pg), /¿FUE PASE O CORRIDA\? Pase Corrida/); await toca(pg, 'pr', 'pase'); await cierra(pg);
+  assert.deepEqual((await js())[1], ['bandera', 'pase', null]);
+  await fila(pg, 1); await toca(pg, 'pr', 'pase'); await cierra(pg); assert.deepEqual((await js())[1], ['bandera', null, null]); // se apaga con otro toque
   assert.deepEqual(pg.errores, []);
   await pg.context().close();
 });
@@ -1510,11 +1535,11 @@ test('Métricas del 24-nov, a mano con Panini y Kaffies: cómo acaban las series
   // pase: 90 yd (8, 12, 15, 6, 4, 10 y el TD de 35) en 7 completos + 3 incompletos + 3 intercepciones = 6.9; corrida: 5, −2, 20 y 7 = 30 en 4; 13 de 17 jugadas son pase
   assert.match(t, /Pase o corrida Yd por pase 6.9 Yd por corrida 7.5 Jugadas de pase 76% Más Pase: 90 yd en 13 jugadas .*; por pase completo, 12.9 yd. Corrida: 30 yd en 4 corridas. .* Fueron de pase 13 de 17 jugadas\./);
   // reparto: 8 pases con nombre: Nicolás 4 (57 yd), Juancho 2 (uno soltado), Mario 1 e Iker 1
-  assert.match(t, /Reparto de pases 1 Nicolas 50% 4 de 8 · 14.3 yd\/pase 2 Juancho 25% 2 de 8 · 3 yd\/pase · 1 soltado 3 Mario 13% 1 de 8 · 15 yd\/pase Más De los 8 pases con nombre \(atrapados o soltados\), cuántos fueron a cada quien. Iker 1 de 8\./);
+  assert.match(t, /Reparto de pases 1 Nicolas 50% 4 de 8 · 14.3 yd\/pase 2 Juancho 25% 2 de 8 · 3 yd\/pase · 1 soltado 3 Mario 13% 1 de 8 · 15 yd\/pase Más De los 8 pases con nombre \(atrapados o no\), cuántos fueron a cada quien; .* Iker 1 de 8\./);
   assert.doesNotMatch(t, /La pulsera/); // nadie marcó la pulsera en esos partidos: el widget no sale
   // defensa: 7 series del rival: 3 TD (21 puntos), 2 nos las quedamos (intercepción y pick 6) y 2 paradas; de sus conversiones no paramos ninguna
   t = await metricas(pg, 'defensa');
-  assert.match(t, /Las series del rival 3 puntos por serie en 7 series del rival Las paramos 29% 2 de 7 Se la quitamos 29% 2 de 7 TD del rival 43% 3 de 7 DESPUÉS DE SU TD Paramos la de 1 0 de 2 Paramos la de 2 0 de 1/);
+  assert.match(t, /Las series del rival 3 puntos por serie en 7 series del rival Sin anotar 29% 2 de 7 Se la quitamos 29% 2 de 7 TD del rival 43% 3 de 7 DESPUÉS DE SU TD Paramos la de 1 0 de 2 Paramos la de 2 0 de 1/);
   // banderas con yardas: 3, −2 y 0 (la cuarta no las trae): 0.3 de promedio, 2 de 3 en 0 o atrás; nadie llega a 5 banderas: sin lista
   assert.match(t, /Antes de la bandera 0.3 ?yd avanza el rival 2 de 3 en 0 o atrás Más Promedio de las yardas marcadas en cada bandera \(3 de 4 banderas las traen\)/);
   assert.doesNotMatch(t, /LOS QUE MENOS DEJAN AVANZAR|Por dónde nos avanzan/);
@@ -1526,7 +1551,7 @@ test('Métricas del 24-nov, a mano con Panini y Kaffies: cómo acaban las series
 });
 
 test('Métricas del 24-nov con lo nuevo, a mano: la pulsera por grupo y por jugada, por dónde nos avanzan y la precisión con mal pase', async () => {
-  const pg = await telefono(srv.url); await siembra(pg, [['lobos-its', 18, NVO]]); await ponLibro(pg);
+  const pg = await telefono(srv.url); await siembra(pg, [['lobos-its', 25, NVO]]); await ponLibro(pg);
   let t = await metricas(pg, 'ataque');
   // salió = TD, o pase o corrida que ganó yardas: Cruce corto 2 de 3 (el pase de −1 no salió), Falso QB 1 de 1; los incompletos y la intercepción, no
   assert.match(t, /La pulsera Rápidas 2 de 3 De avance 0 de 4 Engaños 1 de 1 POR JUGADA · LAS QUE SALIERON 12 · Cruce corto 2 de 3 Rápidas 22 · Pase normal 1 0 de 2 De avance 25 · Poste de Z 0 de 2 De avance 32 · Falso QB 1 de 1 Engaños Más Salió: touchdown, o pase completo o corrida que ganó yardas\. Solo cuentan las jugadas a las que se les marcó el número de la pulsera \(8\)/);
@@ -1569,6 +1594,8 @@ test('la temporada de ejemplo con lo del 24-nov (8 partidos): la pantalla dice l
   // y los puntos: cada mal pase −0.5 al que lo lanzó, cada soltado −1 y el MVP votado de tres partidos +3
   const esperado = (id) => js.filter((j) => j.k === 'incompleto' && j.mal && j.qb === id).length;
   assert.deepEqual(await pg.evaluate(() => PLANTEL.map((p) => [p.id, TEMP[p.id].malp, TEMP[p.id].mvp])), IDS.map((id) => [id, esperado(id), juegosNuevos.filter((g) => g.mvp === id).length])); // eslint-disable-line no-undef
+  // la temporada de ejemplo es de antes del 24-nov: sus soltados siguen en −0.5 (los puntos ya contados no se mueven)
+  assert.deepEqual(await pg.evaluate(() => PLANTEL.reduce((a, p) => [a[0] + TEMP[p.id].drop, a[1] + TEMP[p.id].dropv], [0, 0])), [0, js.filter((j) => j.k === 'incompleto' && j.drop && j.id).length]); // eslint-disable-line no-undef
   assert.deepEqual(pg.errores, []);
   await pg.context().close();
 });
@@ -1592,7 +1619,7 @@ test('la versión de prueba (/belugas-prueba/, mismo dominio): otro guardado, si
   assert.match(await texto(pr), /Versión de prueba\. Trae una temporada de ejemplo y guarda solo en este celular/);
   // se usa de verdad: un partido con pulsera, el MVP de otro, y Ajustes sin la app de antes
   await toca(pr, 'marcar'); await toca(pr, 'rival', 'panini'); await toca(pr, 'vantoggle', 'mau'); await toca(pr, 'vantoggle', 'nicolas'); await toca(pr, 'vanlisto');
-  await toca(pr, 'res', 'pase'); await toca(pr, 'jg', 'Cruce corto'); await toca(pr, 'quien', 'nicolas'); await salto(pr, 10); await toca(pr, 'rgok'); await toca(pr, 'terminar');
+  await toca(pr, 'res', 'pase'); await toca(pr, 'quien', 'nicolas'); await salto(pr, 10); await toca(pr, 'rgok'); await toca(pr, 'jg', 'Cruce corto'); await toca(pr, 'terminar');
   await pr.evaluate(() => { A.juego('g7'); pintar(); }); await toca(pr, 'mvpver'); await toca(pr, 'mvp', 'mau'); // eslint-disable-line no-undef
   await toca(pr, 'ir', 'inicio'); await toca(pr, 'ayuda'); assert.doesNotMatch(await texto(pr), /Libro de jugadas y pulsera/); assert.match(await texto(pr), /Reiniciar la prueba/); await cierra(pr);
   await pr.reload(); await pr.waitForSelector('#tel .nav'); await pr.waitForFunction(() => JUEGOS.length === 9); // eslint-disable-line no-undef
