@@ -1184,7 +1184,7 @@ const PUNTOS = [
   ['conv', 'Conversión, por punto (receptor)', 1], ['convp', 'Conversión, por punto (QB)', 1],
   ['intl', 'Intercepción lanzada', -2], ['skyd', 'Yarda perdida en sack (QB)', -.1], ['malp', 'Mal pase (QB)', -.5], ['drop', 'Pase soltado', -1], ['dropv', 'Pase soltado, partidos de antes del 24-nov', SOLTADO_ANTES], ['safc', 'Safety en contra (portador)', -2],
   ['band', 'Bandera quitada', 2], ['tap', 'Pase tapado', 2], ['pres', 'Presión al QB con incompleto', 1],
-  ['intn', 'Intercepción', 5], ['sack', 'Sack', 3], ['saf', 'Safety a favor', 3],
+  ['intn', 'Intercepción', 5], ['regx', 'Punto extra regresado hasta la zona', 2], ['sack', 'Sack', 3], ['saf', 'Safety a favor', 3],
   ['mvp', 'MVP del partido', 3]];
 // 24-nov (Mau): el mal pase le quita 0.5 al QB (solo las jugadas marcadas así desde hoy: los incompletos de antes no restan), soltarla quita 1 (antes 0.5)
 // y el MVP que vota el equipo da 3 (uno por partido, se marca en la ficha del partido; no es el «Jugador del partido», que sale de los puntos)
@@ -1717,7 +1717,7 @@ function metricas() {
   const defensa = `<div class="card"><div class="big"><strong class="num">${pct(c.fren, c.seriesD)}%</strong><div><b>series paradas</b></div></div>
     ${columnas(con, porG.map((x) => ({ n: pct(x.fren, x.seriesD), t: `${x.fren}/${x.seriesD}` })), con.map((g, i) => selPartido(g, `${porG[i].fren} de ${porG[i].seriesD} series paradas (${pct(porG[i].fren, porG[i].seriesD)}%)`)), { max: 100, alto: 56 })}
     ${mejDef.length ? `<h5>Los mejores · jugadas</h5>${mejores(mejDef, (v) => (v === 1 ? 'jugada' : 'jugadas'))}` : ''}
-    ${det(`${c.fren} de ${plural(c.seriesD, 'serie')}. La defensa permitió ${n1(permitio / con.length)} puntos por partido${regalados ? `; aparte, ${regalados} los regaló el ataque (pick 6 y safety)` : ''}. En total ${plural(c.band, 'bandera')}, ${plural(c.tap, 'tapado')}, ${plural(c.sack, 'sack')} y ${c.rob === 1 ? '1 balón robado' : `${c.rob} balones robados`}.`)}</div>`;
+    ${det(`${c.fren} de ${plural(c.seriesD, 'serie')}. La defensa permitió ${n1(permitio / con.length)} puntos por partido${regalados ? `; aparte, ${regalados} los regaló el ataque (pick 6, safety y punto extra regresado)` : ''}. En total ${plural(c.band, 'bandera')}, ${plural(c.tap, 'tapado')}, ${plural(c.sack, 'sack')} y ${c.rob === 1 ? '1 balón robado' : `${c.rob} balones robados`}.`)}</div>`;
   // QB: el del partido más reciente; completos, yardas por intento y TD : INT, partido a partido, y a quién le lanza
   const aQuien = qb ? c.lista.filter((x) => x.qb === qb).slice(0, 3) : [], otros = PLANTEL.filter((p) => p.id !== qb && TEMP[p.id].att).map((p) => `${p.nombre} ${TEMP[p.id].comp} de ${TEMP[p.id].att}`);
   const qbW = !tq || !tq.att ? '<div class="card"><div class="pp">Todavía nadie ha lanzado un pase.</div></div>' : `<div class="card"><div class="qbw">${foto(P(qb))}<div><b>${P(qb).nombre}</b><small>${plural(tq.att, 'pase')} en ${plural(tq.pj, 'partido')}</small></div></div>
@@ -1916,7 +1916,7 @@ function statsJuego(x, qb, g, id) {
 const HIZO = [['att', 'Pases', (x) => `${x.comp || 0}/${x.att}`], ['pyd', 'Yardas de pase', null, 'Yd de pase'], ['tdp', 'TD de pase'], ['convp', 'Conversión lanzada', (x) => `+${x.convp}`, 'Conversión'], ['intl', 'INT lanzadas'], ['malp', 'Malos pases'], ['skyd', 'Yardas en sack', null, 'Yd en sack'],
   ['rec', 'Recepciones'], ['ryd', 'Yardas atrapadas', null, 'Yd atrapadas'], ['drop', 'Soltados'], ['dropv', 'Soltados'], ['car', 'Corridas'], ['ruyd', 'Yardas corridas', null, 'Yd corridas'],
   ['td', 'TD'], ['conv', 'Conversión atrapada', (x) => `+${x.conv}`, 'Conversión'], ['safc', 'Safety en contra'],
-  ['band', 'Banderas'], ['tap', 'Tapados'], ['pres', 'Presiones'], ['intn', 'INT'], ['sack', 'Sacks'], ['saf', 'Safeties'], ['mvp', 'MVP votado']];
+  ['band', 'Banderas'], ['tap', 'Tapados'], ['pres', 'Presiones'], ['intn', 'INT'], ['regx', 'Punto extra regresado', null, 'Extra regresado'], ['sack', 'Sacks'], ['saf', 'Safeties'], ['mvp', 'MVP votado']];
 // lo que hizo, dentro de su tarjeta: una rejilla de números con su nombre, primero el ataque y luego la defensa (solo lo que sí hizo)
 const hizoJuego = (x) => HIZO.filter(([k]) => x[k] && k !== 'mvp').map(([k, n, f, c]) => `<div><strong class="num">${f ? f(x) : ydTxt(x[k])}</strong><span>${c || n}</span></div>`).join('');
 // de dónde salen sus puntos: solo lo que le dio (o le quitó) puntos, con su cuenta, y el total
@@ -2421,7 +2421,7 @@ function juegoDe(p) {
     if (j.k === 'tapado') s(j.id, 'tap');
     if (j.k === 'presion') s(j.id, 'pres');
     if (j.k === 'intn') s(j.id, 'intn');
-    if (['tdr', 'pick6c'].includes(j.k) && convInt(j)) s(j.convId, 'intn'); // la que interceptó en el punto extra de ellos también es su intercepción
+    if (['tdr', 'pick6c'].includes(j.k) && convInt(j)) { s(j.convId, 'intn'); if (convReg(j)) s(j.convId, 'regx'); } // la que interceptó en el punto extra de ellos también es su intercepción; si la regresó hasta la zona, +2 más (Mau, 24-nov)
     if (j.k === 'sack') s(j.id, 'sack');
     if (j.k === 'safety') s(j.id, 'saf');
   });

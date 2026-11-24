@@ -837,7 +837,7 @@ test('Métricas: «por partido» es uno solo, el de Cómo vamos; la defensa dice
   assert.deepEqual((await texto(pg)).match(/[+\d.]+ por partido/g), ['+2.8 por partido']);
   // al abrir «Más» en Defensa: lo que permitió la defensa (los TD del rival) sin el pick 6 ni el safety en contra, que se dicen aparte
   await abreMas(pg);
-  assert.match(await texto(pg), /La defensa permitió 10.5 puntos por partido; aparte, 9 los regaló el ataque \(pick 6 y safety\)/);
+  assert.match(await texto(pg), /La defensa permitió 10.5 puntos por partido; aparte, 9 los regaló el ataque \(pick 6, safety y punto extra regresado\)/);
   assert.deepEqual(pg.errores, []);
   await pg.context().close();
 });
@@ -967,7 +967,7 @@ test('El equipo: Cómo vamos, Ataque, Defensa y QB con sus mejores, El balón, Q
   assert.deepEqual(await pg.locator('.rvf .riel > i').evaluateAll((xs) => xs.slice(0, 2).map((i) => [i.className, i.style.right || i.style.left, Math.round(parseFloat(i.style.width))])), [['mal neg', '50%', 31], ['', '50%', 50]]);
   // Defensa: los empates de los mejores se ordenan por banderas y luego por nombre; «Más» con lo que permitió. QB con sus tres cifras y a quién le lanza
   await toca(pg, 'met', 'defensa'); await abreMas(pg);
-  assert.match(await texto(pg), /Defensa 52% series paradas 1\/4 KAF 2\/3 ONF 1\/4 AZT 2\/4 KAF 5\/7 LOB 2\/4 BUC 4\/5 PAN 0\/2 KAF LOS MEJORES · JUGADAS 1 Ian 9 jugadas 6 banderas · 3 sacks 2 Jaime 9 jugadas 6 banderas · 3 tapados 3 Juancho 9 jugadas 6 banderas · 2 tapados · 1 INT Más 17 de 33 series. La defensa permitió 13.5 puntos por partido; aparte, 9 los regaló el ataque \(pick 6 y safety\). En total 37 banderas, 8 tapados, 7 sacks y 5 balones robados./);
+  assert.match(await texto(pg), /Defensa 52% series paradas 1\/4 KAF 2\/3 ONF 1\/4 AZT 2\/4 KAF 5\/7 LOB 2\/4 BUC 4\/5 PAN 0\/2 KAF LOS MEJORES · JUGADAS 1 Ian 9 jugadas 6 banderas · 3 sacks 2 Jaime 9 jugadas 6 banderas · 3 tapados 3 Juancho 9 jugadas 6 banderas · 2 tapados · 1 INT Más 17 de 33 series. La defensa permitió 13.5 puntos por partido; aparte, 9 los regaló el ataque \(pick 6, safety y punto extra regresado\). En total 37 banderas, 8 tapados, 7 sacks y 5 balones robados./);
   await toca(pg, 'met', 'qb'); await abreMas(pg);
   assert.match(await texto(pg), /QB Mau 65 pases en 8 partidos Completos 68% Yd\/intento 11.2 TD : INT 10 : 8 57% KAF 50% ONF 89% AZT 64% KAF 91% LOB 71% BUC 50% PAN 50% KAF A QUIÉN LE LANZA 1 Nicolás 14 pases 238 yd · 4 TD 2 Iker 7 pases 131 yd · 1 TD 3 Uri 5 pases 136 yd Más 44 de 65 completos, 731 yardas, 10 TD y 8 INT en 8 partidos. 4 sacks recibidos. También lanzaron: Nicolás 1 de 1, José 1 de 3./);
   // tocar: una pastilla, una columna, un renglón de los mejores y un tramo del balón, cada uno con su etiqueta; otro toque cambia la selección
@@ -1409,10 +1409,10 @@ test('nos interceptaron: la cancha va hacia nuestra zona, la ✕ deja la serie e
   const conv = () => pg.evaluate(() => { const j = st.partido.jugadas[1], g = juegoDe(st.partido), x = g.st.juancho; return [j.conv, j.convId, j.txt, j.marc, x.intn, x.td ?? null, x.conv ?? null, puntosDe(x)]; }); // eslint-disable-line no-undef
   assert.deepEqual(await conv(), [[0, 0], 'juancho', 'pick 6 de KAF, lanzada por Mau · conversión interceptada por Juancho', '0–6', 1, null, null, 5]);
   await corregir(pg, 1); assert.match(await texto(pg), /Conversión Interceptada, por Juancho Cambiar/);
-  // y la regresó hasta la zona: 2 puntos de Belugas (Mau, 24-nov) en el marcador, en el texto y en la ficha; a Juancho le cuenta solo la intercepción
+  // y la regresó hasta la zona: 2 puntos de Belugas (Mau, 24-nov) en el marcador, en el texto y en la ficha; a Juancho le cuenta la intercepción y el regreso
   await toca(pg, 'cconv'); await toca(pg, 'conv', 'int'); await toca(pg, 'convint', '1'); await toca(pg, 'convq', 'juancho');
   assert.deepEqual([await estado(), await marcador(pg)], [['pick6c', null, 'O', 5, 2, 6, null], '2–6']);
-  assert.deepEqual(await conv(), [[0, 0, 1], 'juancho', 'pick 6 de KAF, lanzada por Mau · conversión interceptada por Juancho y regresada, +2 de Belugas', '2–6', 1, null, null, 5]);
+  assert.deepEqual(await conv(), [[0, 0, 1], 'juancho', 'pick 6 de KAF, lanzada por Mau · conversión interceptada por Juancho y regresada, +2 de Belugas', '2–6', 1, null, null, 7]); // 5 de la intercepción + 2 del regreso (Mau, 24-nov: «va»)
   assert.deepEqual(await pg.evaluate(() => anotFicha({ partido: st.partido, rival: st.partido.rival }).map((a) => [a.riv, a.id, a.tit, a.como, a.cv, `${a.nos}–${a.ellos}`])), // eslint-disable-line no-undef
     [[true, null, 'Pick 6 de Kaffies', '', '', '0–6'], [false, 'juancho', 'Regreso de Juancho', 'Punto extra', '+2', '2–6']]);
   await corregir(pg, 1); assert.match(await texto(pg), /Conversión Interceptada, por Juancho · regresada, \+2 Cambiar/);
