@@ -6,13 +6,14 @@ import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
-const TIPOS = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.txt': 'text/plain', '.json': 'application/json' };
+const TIPOS = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.txt': 'text/plain', '.json': 'application/json' };
 
 // URL=https://joosemau-beep.github.io/belugas/ prueba la app publicada; sin URL, la de esta carpeta
 export async function servidor() {
   if (process.env.URL) return { url: process.env.URL, cerrar: () => {} };
   const srv = http.createServer(async (req, res) => {
-    const ruta = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname));
+    // /belugas-prueba/ sirve la misma carpeta: así se prueba la versión de prueba junto a la real, en el mismo dominio (comparten localStorage)
+    const ruta = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^\/belugas-prueba(?=\/)/, '');
     const f = join(RAIZ, ruta.endsWith('/') ? ruta + 'index.html' : ruta);
     try { const cuerpo = await readFile(f); res.writeHead(200, { 'Content-Type': TIPOS[extname(f)] || 'application/octet-stream' }); res.end(cuerpo); }
     catch { res.writeHead(404); res.end(); }

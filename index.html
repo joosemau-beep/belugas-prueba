@@ -704,6 +704,9 @@ html.app .pant > .pregunta.aviso { top: calc(env(safe-area-inset-top) + 68px); }
 .pj small { color: var(--mut); font: 600 11px/1 Inter; }
 .ops { display: grid; gap: 10px; }
 .ops.dos { grid-template-columns: 1fr 1fr; }
+.ops.tres { grid-template-columns: repeat(3, 1fr); gap: 8px; } .ops.tres .op { font-size: 15px; padding: 0 2px; white-space: nowrap; }
+.jgn { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; } .jgn .op { height: 56px; font: italic 900 24px/1 var(--disp); }
+html.prueba .tel::after { content: 'Versión de prueba'; position: absolute; z-index: 90; top: calc(env(safe-area-inset-top) + 3px); left: 50%; transform: translateX(-50%); font: 800 9.5px/1 Inter; letter-spacing: .08em; text-transform: uppercase; color: #3a2c00; background: #f6c90e; padding: 4px 8px; border-radius: 999px; pointer-events: none; white-space: nowrap; }
 .op { height: 64px; border-radius: 999px; background: var(--bg); color: var(--ink); font: 800 17px/1 Inter; }
 .op.prim, .btn-gr { background: var(--boton); color: #fff; }
 .op.sec { background: transparent; box-shadow: inset 0 0 0 1px rgba(11,27,51,.18); font-weight: 700; }
@@ -824,6 +827,7 @@ html.app .pant > .pregunta.aviso { top: calc(env(safe-area-inset-top) + 68px); }
 /* ficha de un partido · jugadores: el primero es el jugador del partido; en la pantalla de cada quien, los puntos que le dio cada cosa */
 .jgs { overflow: hidden; }
 .pp.mvp { background: linear-gradient(90deg, #fff8e1, #fff 70%); } .pp.mvp .foto { box-shadow: 0 0 0 2.5px #f2b632; } .pp.mvp .der strong { font-size: 27px; }
+.pp .eti.voto { color: #fff; background: var(--navy); }
 .pp .eti { display: inline-block; font: 800 9.5px/1 Inter; letter-spacing: .08em; text-transform: uppercase; color: #8a5a00; background: #ffe7a3; border-radius: 5px; padding: 3px 6px; margin-bottom: 4px; }
 .tjp { border-radius: 24px; overflow: hidden; box-shadow: 0 14px 30px rgba(13,35,71,.28); margin-top: 2px; background: #0d1730; color: #fff; }
 .tjp .tj { border-radius: 0; box-shadow: none; margin-top: 0; }
@@ -894,6 +898,7 @@ html.app .pant > .pregunta.aviso { top: calc(env(safe-area-inset-top) + 68px); }
 /* los mejores (2.7): rejilla con el lugar, la foto a dos filas, el nombre y la cifra con su unidad al lado en la primera fila y la línea gris a lo ancho en la segunda */
 .pp.mj { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "rk foto nom der" "rk foto lin lin"; gap: 2px 12px; align-items: center; }
 .pp.mj .rk { grid-area: rk; } .pp.mj .foto { grid-area: foto; } .pp.mj > b { grid-area: nom; align-self: baseline; } .pp.mj > small { grid-area: lin; display: block; white-space: nowrap; }
+.pp.mj.jg { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nom der" "lin lin"; }
 .pp.mj .der { grid-area: der; align-self: baseline; } .pp.mj .der strong { display: inline; } .pp.mj .der small { margin-left: 3px; }
 .nota { padding: 4px 22px 12px; font: 500 12px/1.3 Inter; color: var(--mut); }
 /* «Más»: el detalle, cerrado por omisión, al pie de la tarjeta */
@@ -1053,7 +1058,11 @@ button.rs.sel::before { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--azul); }
 <script>
 'use strict';
 const LOGO = 'logo.webp', CORONA = 'archivos/corona-3d.png';
-const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } }, lsSet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch { return false; } };
+// la versión de prueba (joosemau-beep.github.io/belugas-prueba) vive en el mismo dominio que la app real y comparte su localStorage: guarda todo con
+// otro prefijo, nunca toma la llave del equipo (ni la guardada ni la del link), no registra el service worker y arranca con la temporada de ejemplo
+const PRUEBA = /^\/belugas-prueba(\/|$)/.test(location.pathname), LS = PRUEBA ? 'prueba.' : '';
+if (PRUEBA) { document.title = 'Belugas · PRUEBA'; document.documentElement.classList.add('prueba'); }
+const lsGet = (k) => { try { return localStorage.getItem(LS + k); } catch { return null; } }, lsSet = (k, v) => { try { localStorage.setItem(LS + k, v); return true; } catch { return false; } };
 // los nombres los escribe la gente: van siempre escapados a la pantalla
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -1137,6 +1146,18 @@ let T = tempVacia(), PLANTEL = [];
 const RETRATOS = { nicolas: 'nico', rodrigo: 'rodrigo', mau: 'mau', iker: 'iker', mario: 'mario', jaime: 'jaime', uri: 'uri', ian: 'ian', patrick: 'patrick', juanpi: 'juanpi', jonpol: 'juanpi', leo: 'leo', jose: 'jose', juancho: 'juancho', jj: 'jj' };
 const retrato = (x) => RETRATOS[x.id] || RETRATOS[slug(x.nombre).replace(/-/g, '')];
 const P = (id) => PLANTEL.find((x) => x.id === id);
+// ---------- la pulsera (24-nov): al marcar una jugada de ataque se puede decir cuál de la pulsera fue, por su número ----------
+// El libro de jugadas es el de la app de antes: se lee de su fila (solo lectura) al abrir y se guarda en el teléfono. [[grupo, [jugadas]], …], como secGroups()
+// de ipad.html, y el número es el de la pulsera (numJ): grupo y lugar, «12». Sin libro (sin nube todavía) no se pregunta nada
+let LIBRO = (() => { try { const l = JSON.parse(lsGet('belugas.libro')); return Array.isArray(l) ? l : []; } catch { return []; } })();
+const libroDe = (d) => { const off = d.off || [], secs = d.secs || [], de = d.secOf || {}; return [...secs.map((x) => [x, off.filter((n) => de[n] === x)]), ['Sin sección', off.filter((n) => !secs.includes(de[n]))]].filter(([, l]) => l.length); };
+const numJg = (n) => { for (let i = 0; i < LIBRO.length; i++) { const k = LIBRO[i][1].indexOf(n); if (k >= 0) return `${i + 1}${k + 1}`; } return ''; };
+const grupoJg = (n) => (LIBRO.find(([, l]) => l.includes(n)) || [''])[0];
+const PULSERA = ['pase', 'corrida', 'incompleto', 'int', 'td']; // las jugadas que la preguntan
+// «salió o no» no se pregunta: sale del resultado. Salió = touchdown, o pase completo o corrida que ganó yardas (sin yardas marcadas se da por buena)
+const salio = (j, y) => j.k === 'td' || (['pase', 'corrida'].includes(j.k) && !(y != null && y <= 0));
+async function leeLibro() { if (!clave || nube.mala) return;
+  try { const [v] = await rpc('tochito_leer', { p_clave: clave }), l = v && v.datos ? libroDe(v.datos) : []; if (l.length) { LIBRO = l; lsSet('belugas.libro', JSON.stringify(l)); } } catch { /* sin señal: queda el guardado */ } }
 function armarPlantel() {
   const l = T.linea || {};
   PLANTEL = (T.plantel || []).filter((x) => !x.baja).sort((a, b) => (a.n ?? 999) - (b.n ?? 999) || (a.id < b.id ? -1 : 1)).map((x) => { const r = retrato(x), f = r ? `archivos/jugadores/${r}.jpg` : null, n = esc(x.nombre);
@@ -1159,11 +1180,14 @@ const ANTES = {
 const PUNTOS = [
   ['ryd', 'Yarda atrapada', .1], ['ruyd', 'Yarda corrida', .1], ['pyd', 'Yarda por pase (QB)', .04], ['rec', 'Recepción', 1], ['td', 'Touchdown', 6], ['tdp', 'TD de pase (QB)', 4],
   ['conv', 'Conversión, por punto (receptor)', 1], ['convp', 'Conversión, por punto (QB)', 1],
-  ['intl', 'Intercepción lanzada', -2], ['skyd', 'Yarda perdida en sack (QB)', -.1], ['drop', 'Pase soltado', -.5], ['safc', 'Safety en contra (portador)', -2],
+  ['intl', 'Intercepción lanzada', -2], ['skyd', 'Yarda perdida en sack (QB)', -.1], ['malp', 'Mal pase (QB)', -.5], ['drop', 'Pase soltado', -1], ['safc', 'Safety en contra (portador)', -2],
   ['band', 'Bandera quitada', 2], ['tap', 'Pase tapado', 2], ['pres', 'Presión al QB con incompleto', 1],
-  ['intn', 'Intercepción', 5], ['sack', 'Sack', 3], ['saf', 'Safety a favor', 3]];
-const PUNTOS_DEF = 12; // desde aquí, defensa
-const CAMPOS = ['att', 'comp', 'car', 'sackr', ...PUNTOS.map(([k]) => k)];
+  ['intn', 'Intercepción', 5], ['sack', 'Sack', 3], ['saf', 'Safety a favor', 3],
+  ['mvp', 'MVP del partido', 3]];
+// 24-nov (Mau): el mal pase le quita 0.5 al QB (solo las jugadas marcadas así desde hoy: los incompletos de antes no restan), soltarla quita 1 (antes 0.5)
+// y el MVP que vota el equipo da 3 (uno por partido, se marca en la ficha del partido; no es el «Jugador del partido», que sale de los puntos)
+const PUNTOS_DEF = 13; // desde aquí, defensa; el último, el MVP votado, va aparte
+const CAMPOS = ['att', 'comp', 'car', 'sackr', 'tgt', ...PUNTOS.map(([k]) => k)];
 const puntosDe = (x) => Math.round(PUNTOS.reduce((a, [k, , w]) => a + ((x && x[k]) || 0) * w, 0) * 10) / 10;
 const fmtPts = (w) => (w > 0 ? '+' : '−') + Math.abs(w);
 // la regla de textos (Iker, 22-nov): una decimal con punto, negativos con «−», lugares «1º»
@@ -1171,8 +1195,8 @@ const n1 = (x) => String(Math.round(x * 10) / 10).replace('-', '−');
 const conSigno = (x) => (x > 0 ? '+' : x < 0 ? '−' : '') + String(Math.abs(Math.round(x * 10) / 10));
 const ord = (n) => `${n}º`;
 const tablaPuntos = () => `<details class="card reglas det"><summary>Sistema de puntos</summary>
-  ${[['Ataque', PUNTOS.slice(0, PUNTOS_DEF)], ['Defensa', PUNTOS.slice(PUNTOS_DEF)]].map(([t, l]) => `<h4>${t}</h4>${l.filter(([k]) => k !== 'pres').map(([, n, w]) => `<div class="rg"><span>${n}</span><b class="num${w < 0 ? ' neg' : ''}">${fmtPts(w)}</b></div>`).join('')}`).join('')}
-  <p>El pase completo no da puntos: el QB gana por las yardas que lanza, 1 punto cada 25 yardas. Las yardas perdidas restan: en corrida, en pase completo y en sack. El pase incompleto no resta. Pick 6: intercepción y TD, +11. No cuentan el fumble (el balón queda muerto) ni la bandera fallada. No hay puntos de defensa por equipo, porque casi todos juegan en ataque y en defensa.</p></details>`;
+  ${[['Ataque', PUNTOS.slice(0, PUNTOS_DEF)], ['Defensa', PUNTOS.slice(PUNTOS_DEF, -1)], ['Votación del equipo', PUNTOS.slice(-1)]].map(([t, l]) => `<h4>${t}</h4>${l.filter(([k]) => k !== 'pres').map(([, n, w]) => `<div class="rg"><span>${n}</span><b class="num${w < 0 ? ' neg' : ''}">${fmtPts(w)}</b></div>`).join('')}`).join('')}
+  <p>El pase completo no da puntos: el QB gana por las yardas que lanza, 1 punto cada 25 yardas. Las yardas perdidas restan: en corrida, en pase completo y en sack. En el pase incompleto, el mal pase le resta al QB y soltarla le resta al receptor; el incompleto sin culpa de nadie no resta. El MVP lo vota el equipo y se marca en la ficha del partido: uno por partido. Pick 6: intercepción y TD, +11. No cuentan el fumble (el balón queda muerto) ni la bandera fallada. No hay puntos de defensa por equipo, porque casi todos juegan en ataque y en defensa.</p></details>`;
 // vino: está en «quiénes vinieron» o hizo alguna jugada (los partidos sin esa lista cuentan solo lo segundo)
 const vino = (g, id) => !!g.st[id] || !!(g.partido && (g.partido.van || []).includes(id));
 // el QB del partido: el marcado; si no hay, el que más lanzó
@@ -1466,7 +1490,7 @@ function lideres() {
 
 // ---------- pantallas ----------
 // sin el link del equipo no hay plantel ni nube: se dice aquí
-const avisoNube = () => (!clave ? '<div class="relevo" style="margin:0 0 12px">Falta el enlace del equipo. Abre la app desde el enlace que te enviaron para ver a los jugadores.</div>'
+const avisoNube = () => (PRUEBA && !clave ? '<div class="relevo" style="margin:0 0 12px"><b>Versión de prueba.</b> Trae una temporada de ejemplo y guarda solo en este celular: nada de aquí llega a la app del equipo.</div>' : !clave ? '<div class="relevo" style="margin:0 0 12px">Falta el enlace del equipo. Abre la app desde el enlace que te enviaron para ver a los jugadores.</div>'
   : nube.mala ? '<div class="relevo" style="margin:0 0 12px">El enlace del equipo no es válido. Pide uno nuevo.</div>'
   : guardaMal ? '<div class="relevo" style="margin:0 0 12px">Este celular no puede guardar las jugadas (¿navegación privada?). Con señal se suben a la nube; sin señal podrían perderse.</div>' : '');
 // cómo nos ha ido contra el rival de hoy, si ya jugamos con él («· vs Kaffies: 1–2»)
@@ -1492,7 +1516,7 @@ function inicio1() {
 }
 // [qué pasó, nombre en el botón, lo que dice abajo (solo en los 4 grandes), la pregunta de quién, nombre largo para «Cambiar qué pasó» (opcional)]
 const RES = {
-  O: [['pase', 'Pase completo', 'Luego quién la atrapó', '¿Quién la atrapó?'], ['corrida', 'Corrida', 'Luego quién corrió', '¿Quién corrió?'], ['incompleto', 'Incompleto', 'Pase soltado o mal pase', '¿Para quién era el pase?'], ['parada', 'Jugada detenida', 'Se guarda al tocarlo', '¿A quién detuvieron?'], ['int', 'Intercepción lanzada', 'La interceptó el rival', '¿Quién la lanzó?'], ['pick6c', 'Pick 6 en contra', 'Intercepción regresada a TD', '¿Quién la lanzó?'], ['castigo', 'Castigo', 'A favor o en contra', null], ['sackr', 'Sack recibido', 'Se guarda al tocarlo', '¿Quién recibió el sack?'], ['safetyc', 'Safety en contra', '+2 del rival', '¿Quién tenía el balón?']],
+  O: [['pase', 'Pase completo', 'Luego quién la atrapó', '¿Quién la atrapó?'], ['corrida', 'Corrida', 'Luego quién corrió', '¿Quién corrió?'], ['incompleto', 'Incompleto', 'Mal pase, incompleto o soltado', '¿Para quién era el pase?'], ['parada', 'Jugada detenida', 'Se guarda al tocarlo', '¿A quién detuvieron?'], ['int', 'Intercepción lanzada', 'La interceptó el rival', '¿Quién la lanzó?'], ['pick6c', 'Pick 6 en contra', 'Intercepción regresada a TD', '¿Quién la lanzó?'], ['castigo', 'Castigo', 'A favor o en contra', null], ['sackr', 'Sack recibido', 'Se guarda al tocarlo', '¿Quién recibió el sack?'], ['safetyc', 'Safety en contra', '+2 del rival', '¿Quién tenía el balón?']],
   D: [['bandera', 'Bandera quitada', 'Luego quién', '¿Quién quitó la bandera?'], ['tapado', 'Pase tapado', 'Pase defendido', '¿Quién lo tapó?'], ['intn', 'Intercepción', 'Balón recuperado', '¿Quién interceptó?'], ['sack', 'Sack', 'Al QB detrás de la línea', '¿Quién hizo el sack?'], ['pick6', 'Pick 6', 'Intercepción regresada a TD', '¿Quién la regresó?'], ['safety', 'Safety a favor', '+2 de Belugas', '¿Quién hizo el safety?'], ['castigo', 'Castigo', 'A favor o en contra', null]],
 };
 // ícono de cada resultado (intercepción nuestra usa el mismo glifo que la de ellos)
@@ -1539,20 +1563,38 @@ function jlista(p, tocable) {
 // Solo lo que de verdad se marca. Las yardas se promedian entre las jugadas que las traen (ponerlas es opcional).
 function cuentas(ps) {
   const c = { pj: ps.length, nos: 0, ellos: 0, seriesO: 0, seriesTD: 0, comp: 0, att: 0, ydP: 0, nP: 0, corr: 0, ydC: 0, nC: 0, tdP: 0, tdC: 0, cv: { 1: [0, 0], 2: [0, 0] }, perd: 0, drops: 0, sackr: 0,
-    seriesD: 0, fren: 0, band: 0, tap: 0, rob: 0, sack: 0, saf: 0, con: {} };
+    seriesD: 0, fren: 0, band: 0, tap: 0, rob: 0, sack: 0, saf: 0, con: {},
+    // 24-nov: cómo acaban las series y sus puntos, las conversiones del rival que paramos ([paradas, intentos]), los incompletos y sus porqués, cada receptor
+    // (rec), cada lanzador (qb), las yardas antes de la bandera (bd), por dónde avanza el rival (pr) y las jugadas de la pulsera (jg)
+    finO: { td: 0, int: 0, sin: 0 }, finD: { td: 0, rob: 0, par: 0 }, ptsO: 0, ptsD: 0, cvr: { 1: [0, 0], 2: [0, 0] }, inc: 0, malp: 0, rec: {}, qb: {},
+    bd: { n: 0, yd: 0, cero: 0, por: {} }, pr: { pase: { n: 0, yd: 0, ny: 0, td: 0 }, corrida: { n: 0, yd: 0, ny: 0, td: 0 } }, jg: {} };
+  const de = (o, id, base) => (o[id] = o[id] || { id, ...base });
   ps.forEach((p) => {
     c.nos += p.nos || 0; c.ellos += p.ellos || 0;
     // la última serie del partido no cuenta si no acabó en anotación, robo o cambio de lado: la cortó el silbatazo
     const ss = seriesDe(p.jugadas), f = ss.length && efecto(ss[ss.length - 1].js.slice(-1)[0]);
     if (f && !(f.cambia || f.serie || f.reinicia)) ss.pop();
-    ss.forEach((s) => { if (s.lado === 'O') { c.seriesO++; if (s.js.some((y) => y.k === 'td')) c.seriesTD++; } else { c.seriesD++; if (!s.js.some((y) => y.k === 'tdr')) c.fren++; } });
+    ss.forEach((s) => { const u = s.js[s.js.length - 1].k;
+      if (s.lado === 'O') { const td = s.js.some((y) => y.k === 'td'); c.seriesO++; if (td) c.seriesTD++; c.finO[td ? 'td' : ['int', 'pick6c'].includes(u) ? 'int' : 'sin']++; }
+      else { const td = s.js.some((y) => y.k === 'tdr'); c.seriesD++; if (!td) c.fren++; c.finD[td ? 'td' : ['intn', 'pick6'].includes(u) ? 'rob' : 'par']++; } });
     p.jugadas.forEach((j) => {
       const pas = j.k === 'pase' || (j.k === 'td' && !!j.qb), cor = j.k === 'corrida' || (j.k === 'td' && !j.qb), y = ydDe(j), qb = j.qb || p.qb;
+      const Q = () => de(c.qb, qb, { bien: 0, mal: 0, malp: 0, drop: 0, neu: 0, int: 0 }), RC = () => de(c.rec, j.id, { tgt: 0, rec: 0, yd: 0, drop: 0 });
       if (pas) { c.comp++; c.att++; if (y != null) { c.ydP += y; c.nP++; } if (j.k === 'td') c.tdP++;
+        if (qb) Q().bien++; if (j.id) { const r = RC(); r.tgt++; r.rec++; r.yd += y || 0; }
         if (qb && j.id) { const x = c.con[`${qb}>${j.id}`] = c.con[`${qb}>${j.id}`] || { qb, id: j.id, n: 0, yd: 0, td: 0 }; x.n++; x.yd += y || 0; if (j.k === 'td') x.td++; } }
       if (cor) { c.corr++; if (y != null) { c.ydC += y; c.nC++; } if (j.k === 'td') c.tdC++; }
-      if (j.k === 'incompleto') { c.att++; if (j.drop) c.drops++; }
-      if (j.k === 'int' || j.k === 'pick6c') { c.att++; c.perd++; }
+      // el pase bien lanzado es el completo o el que soltaron; el mal lanzado, el mal pase o la intercepción; el incompleto a secas no cuenta para ningún lado
+      if (j.k === 'incompleto') { c.att++; c.inc++; if (j.drop) c.drops++; else if (j.mal) c.malp++;
+        if (qb) { const q = Q(); if (j.drop) { q.drop++; q.bien++; } else if (j.mal) { q.malp++; q.mal++; } else q.neu++; }
+        if (j.id) { const r = RC(); r.tgt++; if (j.drop) r.drop++; } }
+      if (j.k === 'int' || j.k === 'pick6c') { c.att++; c.perd++; if (qb) { const q = Q(); q.int++; q.mal++; } }
+      if (j.k === 'td') c.ptsO += efecto(j).nos; if (j.k === 'tdr') c.ptsD += efecto(j).ellos;
+      if ((j.k === 'tdr' || j.k === 'pick6c') && j.conv && c.cvr[j.conv[0]]) { c.cvr[j.conv[0]][1]++; if (!j.conv[1]) c.cvr[j.conv[0]][0]++; }
+      if (j.k === 'bandera' && j.yd != null) { [c.bd, j.id && de(c.bd.por, j.id, { n: 0, yd: 0, cero: 0 })].forEach((b) => { if (b) { b.n++; b.yd += j.yd; if (j.yd <= 0) b.cero++; } }); }
+      if (j.k === 'bandera' && c.pr[j.pr]) { const r = c.pr[j.pr]; r.n++; if (j.yd != null) { r.yd += j.yd; r.ny++; } }
+      if (j.k === 'tdr' && c.pr[j.pr]) c.pr[j.pr].td++;
+      if (j.jg && j.lado === 'O' && PULSERA.includes(j.k)) { const x = c.jg[j.jg] = c.jg[j.jg] || { j: j.jg, g: j.jgg || '', n: 0, ok: 0 }; x.n++; if (salio(j, y)) x.ok++; }
       if (j.k === 'sackr') c.sackr++;
       if ((j.k === 'td' || j.k === 'pick6') && j.conv && c.cv[j.conv[0]]) { c.cv[j.conv[0]][1]++; if (j.conv[1]) c.cv[j.conv[0]][0]++; }
       if (j.k === 'bandera') c.band++; if (j.k === 'tapado') c.tap++; if (j.k === 'intn' || j.k === 'pick6') c.rob++; if (j.k === 'sack') c.sack++; if (j.k === 'safety') c.saf++;
@@ -1568,6 +1610,10 @@ const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios || uno + 's'}`
 // cada widget va en un div.w con su título; en iPad cada uno es una celda de la rejilla
 const widget = (id, titulo, cuerpo) => `<div class="w" data-w="${id}">${titulo ? `<h2>${titulo}</h2>` : ''}${cuerpo}</div>`;
 const det = (txt) => `<details class="det"><summary>Más</summary><div>${txt}</div></details>`;
+// «X de Y» (24-nov): un renglón con su barra; el porcentaje sale con MIN intentos o más y lleva al lado «8 de 11»; con menos, solo «3 de 7». nota: algo más en la pastilla
+const renDe = (k, a, b, { mal = false, nota = '' } = {}) => { const hay = b >= MIN, pas = [hay ? `${a} de ${b}` : '', nota].filter(Boolean).join(' · ');
+  return `<div class="ce"><div><b>${k}</b></div><div class="ce-v"><strong class="num">${hay ? `${pct(a, b)}%` : `${a} <i>de ${b}</i>`}</strong>${pas ? `<span class="lugar">${pas}</span>` : ''}</div><div class="ce-b">${riel(pct(a, b), { mal, datos: { t: k, v: `${a} de ${b}${hay ? ` (${pct(a, b)}%)` : ''}`, s: nota } })}</div></div>`; };
+const franja = (celdas) => `<div class="franja3">${celdas.map(([k, v]) => `<div><span>${k}</span><strong class="num">${v}</strong></div>`).join('')}</div>`;
 // tocar las gráficas (Iker, 22-nov): lo que se toca lleva sus datos en data-sel: t título, v cifra, s línea, l [acción, valor] a dónde brinca, lt el texto del enlace
 const sel = (o) => ` data-sel="${esc(JSON.stringify(o))}" aria-label="${esc([o.t, o.v, o.s].filter(Boolean).join(', '))}" aria-pressed="false"`;
 const vsTxt = (g) => `vs ${R(g.rival).nombre} · ${g.fecha}`;
@@ -1676,6 +1722,48 @@ function metricas() {
     ${columnas(con, con.map((g) => { const x = g.st[qb] || {}; return x.att ? { n: pct(x.comp, x.att), t: `${pct(x.comp, x.att)}%` } : null; }), con.map((g) => { const x = g.st[qb] || {}; return selPartido(g, x.att ? `${x.comp || 0} de ${x.att} pases completos (${pct(x.comp, x.att)}%)` : 'no lanzó'); }), { max: 100, alto: 48 })}
     ${aQuien.length ? `<h5>A quién le lanza</h5>${mejores(aQuien.map((x) => ({ id: x.id, v: x.n, sub: [x.yd ? `${x.yd} yd` : '', x.td ? `${x.td} TD` : ''].filter(Boolean).join(' · ') })), (v) => (v === 1 ? 'pase' : 'pases'))}` : ''}
     ${det(`${tq.comp} de ${tq.att} completos, ${plural(tq.pyd, 'yarda')}, ${tq.tdp} TD y ${tq.intl} INT en ${plural(tq.pj, 'partido')}.${tq.sackr ? ` ${plural(tq.sackr, 'sack recibido', 'sacks recibidos')}.` : ''}${otros.length ? ` También lanzaron: ${otros.join(', ')}.` : ''}`)}</div>`;
+  // ---- 24-nov: lo que ayuda a decidir en la cancha, bajo cada área. Todo sale de lo que ya se marca, más la pulsera, el mal pase y el «pase o corrida» del rival
+  const sO = c.seriesO, sD = c.seriesD, cvO = [1, 2].filter((k) => c.cv[k][1]), cvD = [1, 2].filter((k) => c.cvr[k][1]);
+  // Ataque · cómo acaban nuestras series, puntos por serie y, después del TD, la conversión de 1 contra la de 2 (puntos por intento)
+  const wSeries = !sO ? '' : widget('series', 'Cómo acaban las series', `<div class="card"><div class="big"><strong class="num">${n1(c.ptsO / sO)}</strong><div><b>puntos por serie</b><small>en ${plural(sO, 'serie')} de ataque</small></div></div>
+    <div data-grupo>${renDe('Touchdown', c.finO.td, sO)}${renDe('Sin anotar', c.finO.sin, sO)}${renDe('Intercepción', c.finO.int, sO, { mal: true })}</div>
+    ${cvO.length ? `<h5>Después del TD</h5><div data-grupo>${cvO.map((k) => renDe(`Conversión de ${k}`, c.cv[k][0], c.cv[k][1], { nota: `${n1(k * c.cv[k][0] / c.cv[k][1])} por intento` })).join('')}</div>` : ''}
+    ${det(`Puntos del ataque (TD y conversión) entre sus series; la última serie de un partido no cuenta si la cortó el silbatazo. «Por intento» son los puntos que deja cada conversión que se intenta: la de 2 conviene si deja más que la de 1. El porcentaje sale con ${MIN} intentos o más.`)}</div>`);
+  // Ataque · pase contra corrida: yardas por jugada (solo jugadas con yardas marcadas; el incompleto y la intercepción son jugadas de pase de 0 yardas)
+  const nPase = c.nP + c.inc + c.perd, wPaseCorr = !(nPase || c.nC) ? '' : widget('pasecorr', 'Pase o corrida', `<div class="card">${franja([['Yd por pase', nPase ? n1(c.ydP / nPase) : '—'], ['Yd por corrida', c.nC ? n1(c.ydC / c.nC) : '—'], ['Jugadas de pase', `${pct(c.att, c.att + c.corr)}%`]])}
+    ${det(`Pase: ${ydTxt(c.ydP)} yd en ${plural(nPase, 'jugada')} (el incompleto y la intercepción cuentan como 0 yd)${c.nP ? `; por pase completo, ${n1(c.ydP / c.nP)} yd` : ''}. Corrida: ${ydTxt(c.ydC)} yd en ${plural(c.nC, 'corrida')}. Solo cuentan las jugadas con yardas marcadas. Fueron de pase ${c.att} de ${c.att + c.corr} jugadas.`)}</div>`);
+  // Ataque · a quién le lanzamos: su parte de los pases con nombre (atrapados o soltados), yardas por pase y soltados
+  const recs = Object.values(c.rec).sort((a, b) => b.tgt - a.tgt || b.yd - a.yd), totT = recs.reduce((a, x) => a + x.tgt, 0);
+  const repTxt = (x) => `${nom(x.id)} ${x.tgt} de ${totT}`;
+  const wReparto = !totT ? '' : widget('reparto', 'Reparto de pases', `<div class="card">${mejores(recs.map((x) => ({ id: x.id, v: `${pct(x.tgt, totT)}%`, sub: [`${x.tgt} de ${totT}`, `${n1(x.yd / x.tgt)} yd/pase`, x.drop && plural(x.drop, 'soltado')].filter(Boolean).join(' · ') })), () => '')}
+    ${det(`De los ${plural(totT, 'pase')} con nombre (atrapados o soltados), cuántos fueron a cada quien. ${recs.slice(3).map(repTxt).join(' · ')}${recs.length > 3 ? '.' : ''}`)}</div>`);
+  // Ataque · la pulsera: primero por grupo y luego por jugada, con cuántas salieron de las que se marcaron
+  const jgs = Object.values(c.jg).sort((a, b) => b.n - a.n || b.ok - a.ok), grp = {}; jgs.forEach((x) => { const g = grp[x.g] = grp[x.g] || { n: 0, ok: 0 }; g.n += x.n; g.ok += x.ok; });
+  const grupos = [...LIBRO.map(([g]) => g), ...Object.keys(grp)].filter((g, i, a) => grp[g] && a.indexOf(g) === i), jgTit = (x) => `${numJg(x.j) ? numJg(x.j) + ' · ' : ''}${x.j}`;
+  const wPulsera = !jgs.length ? '' : widget('pulsera', 'La pulsera', `<div class="card"><div data-grupo>${grupos.map((g) => renDe(esc(g || 'Sin grupo'), grp[g].ok, grp[g].n)).join('')}</div>
+    <h5>Por jugada · las que salieron</h5><div data-grupo>${jgs.slice(0, 5).map((x) => `<button class="pp mj jg"${sel({ t: jgTit(x), v: `salió ${x.ok} de ${x.n}${x.n >= MIN ? ` (${pct(x.ok, x.n)}%)` : ''}`, s: x.g })}><b class="corta">${esc(jgTit(x))}</b><div class="der"><strong class="num">${x.ok}</strong> <small>de ${x.n}</small></div><small class="uno">${[esc(x.g), x.n >= MIN ? `${pct(x.ok, x.n)}%` : ''].filter(Boolean).join(' · ')}</small></button>`).join('')}</div>
+    ${det(`Salió: touchdown, o pase completo o corrida que ganó yardas. Solo cuentan las jugadas a las que se les marcó el número de la pulsera (${jgs.reduce((a, x) => a + x.n, 0)}). El porcentaje sale con ${MIN} intentos o más.${jgs.length > 5 ? ` Las demás: ${jgs.slice(5).map((x) => `${esc(jgTit(x))} ${x.ok} de ${x.n}`).join(' · ')}.` : ''}`)}</div>`);
+  // Defensa · cómo acaban las series del rival, sus puntos por serie y las conversiones que le paramos
+  const wSeriesD = !sD ? '' : widget('seriesd', 'Las series del rival', `<div class="card"><div class="big"><strong class="num">${n1(c.ptsD / sD)}</strong><div><b>puntos por serie</b><small>en ${plural(sD, 'serie')} del rival</small></div></div>
+    <div data-grupo>${renDe('Las paramos', c.finD.par, sD)}${renDe('Se la quitamos', c.finD.rob, sD)}${renDe('TD del rival', c.finD.td, sD, { mal: true })}</div>
+    ${cvD.length ? `<h5>Después de su TD</h5><div data-grupo>${cvD.map((k) => renDe(`Paramos la de ${k}`, c.cvr[k][0], c.cvr[k][1])).join('')}</div>` : ''}
+    ${det(`Puntos que anotó el rival con su ataque (TD y conversión) entre sus series; el pick 6 y el safety en contra no son de la defensa. «Se la quitamos»: intercepción o pick 6. El porcentaje sale con ${MIN} intentos o más.`)}</div>`);
+  // Defensa · cuánto avanza el rival antes de que le quiten la bandera (las yardas que se marcan en la bandera), del equipo y de cada quien
+  const bds = Object.values(c.bd.por).filter((x) => x.n >= MIN).sort((a, b) => a.yd / a.n - b.yd / b.n || b.n - a.n);
+  const wBandera = !c.bd.n ? '' : widget('antesb', 'Antes de la bandera', `<div class="card"><div class="big"><strong class="num">${n1(c.bd.yd / c.bd.n)}<i>yd</i></strong><div><b>avanza el rival</b><small>${c.bd.cero} de ${c.bd.n} en 0 o atrás</small></div></div>
+    ${bds.length ? `<h5>Los que menos dejan avanzar</h5>${mejores(bds.map((x) => ({ id: x.id, v: n1(x.yd / x.n), sub: `${plural(x.n, 'bandera')} · ${x.cero} en 0 o atrás` })), () => 'yd')}` : ''}
+    ${det(`Promedio de las yardas marcadas en cada bandera (${c.bd.n} de ${plural(c.band, 'bandera')} las traen).${c.bd.n >= MIN ? ` En 0 o atrás quedó el ${pct(c.bd.cero, c.bd.n)}%.` : ''} Por jugador, con ${MIN} banderas con yardas o más.`)}</div>`);
+  // Defensa · por dónde nos avanzan y nos anotan: lo que se toca en la bandera y en el TD del rival («¿pase o corrida?»)
+  const pr = c.pr, nPr = pr.pase.n + pr.corrida.n, tdPr = pr.pase.td + pr.corrida.td, ydPr = (x) => (x.ny ? n1(x.yd / x.ny) : '—');
+  const wPorDonde = !(nPr + tdPr) ? '' : widget('pordonde', 'Por dónde nos avanzan', `<div class="card">${franja([['Yd por pase', ydPr(pr.pase)], ['Yd por corrida', ydPr(pr.corrida)], ['Jugadas de pase', `${pct(pr.pase.n + pr.pase.td, nPr + tdPr)}%`]])}
+    ${tdPr ? `<div class="nota">TD del rival: ${pr.pase.td} de pase · ${pr.corrida.td} de corrida</div>` : ''}
+    ${det(`De las jugadas del rival a las que se les marcó «pase o corrida»: ${plural(pr.pase.n, 'bandera')} y ${pr.pase.td} TD de pase; ${plural(pr.corrida.n, 'bandera')} y ${pr.corrida.td} TD de corrida. Las yardas son las de antes de la bandera.`)}</div>`);
+  // QB · precisión: pases bien lanzados (completos o soltados) contra mal lanzados (mal pase o intercepción), y por qué se caen los incompletos
+  const pq = qb && c.qb[qb], lanz = pq ? pq.bien + pq.mal : 0, incs = pq ? pq.malp + pq.drop + pq.neu : 0;
+  const wPrecision = !lanz ? '' : widget('precision', 'Precisión', `<div class="card"><div class="big"><strong class="num">${lanz >= MIN ? `${pct(pq.bien, lanz)}%` : `${pq.bien} <i>de ${lanz}</i>`}</strong><div><b>pases bien lanzados</b><small>${pq.bien} de ${lanz} · ${P(qb) ? P(qb).nombre : nom(qb)}</small></div></div>
+    ${incs ? `<h5>Por qué se caen</h5><div data-grupo>${renDe('Mal pase', pq.malp, incs, { mal: true })}${renDe('La soltó', pq.drop, incs)}${renDe('Incompleto', pq.neu, incs)}</div>` : ''}
+    ${det(`Bien lanzado: pase completo o pase que soltó el receptor. Mal lanzado: mal pase o intercepción (${pq.malp} y ${pq.int}). El incompleto a secas, el buen pase que taparon o lo que sea, no cuenta para ningún lado. El mal pase se marca desde el 24 de noviembre: los incompletos de antes cuentan como «Incompleto».`)}</div>`);
+  const extras = { ataque: wSeries + wPaseCorr + wReparto + wPulsera, defensa: wSeriesD + wBandera + wPorDonde, qb: wPrecision }[ver];
   // El balón: robados contra perdidos, en una barra partida
   const bal = c.rob - c.perd;
   const balon = `<div class="card"><div class="big"><strong class="num${bal < 0 ? ' mal' : ''}">${conSigno(bal)}</strong><div><b>${c.rob < c.perd ? 'más perdidos que robados' : c.rob > c.perd ? 'más robados que perdidos' : 'tantos robados como perdidos'}</b></div></div>
@@ -1687,7 +1775,7 @@ function metricas() {
     ${faltan.length ? `<div class="chips" data-grupo>${faltan.map((a) => `<button class="chip"${sel({ t: nom(a.id), v: `${a.n} de ${con.length}`, s: `faltó a ${plural(con.length - a.n, 'partido')}`, l: ['jug', a.id], lt: 'Ver ficha' })}>${foto(P(a.id))}${nom(a.id)} <b class="num">${a.n} de ${con.length}</b></button>`).join('')}</div>` : ''}
     ${det(`${asis.map((a) => `${nom(a.id)} ${a.n} de ${con.length}`).join(' · ')}.`)}</div>`;
   return `${arriba}${widget('vamos', 'Cómo vamos', vamos + areas)}
-  ${widget(ver, { ataque: 'Ataque', defensa: 'Defensa', qb: 'QB' }[ver], { ataque, defensa, qb: qbW }[ver])}
+  ${widget(ver, { ataque: 'Ataque', defensa: 'Defensa', qb: 'QB' }[ver], { ataque, defensa, qb: qbW }[ver])}${extras}
   ${widget('balon', 'El balón', balon)}${widget('viene', 'Quién viene', viene)}${contra}
   </div>${nav()}</div>`;
 }
@@ -1817,16 +1905,16 @@ function statsJuego(x, qb, g, id) {
 // [campo, cómo se dice, cómo se escribe]; primero el ataque y luego la defensa. Con palabras, no abreviaturas (la regla de textos, 22-nov).
 // Las recepciones ya no van «de cuántas» (7/8): el mal pase no tiene receptor desde el PR 9, así que ese «de cuántas» engañaba; los soltados van aparte
 // [campo, cómo se dice, cómo se escribe, cómo se dice en la rejilla (corto, para que quepa en un renglón)]
-const HIZO = [['att', 'Pases', (x) => `${x.comp || 0}/${x.att}`], ['pyd', 'Yardas de pase', null, 'Yd de pase'], ['tdp', 'TD de pase'], ['convp', 'Conversión lanzada', (x) => `+${x.convp}`, 'Conversión'], ['intl', 'INT lanzadas'], ['skyd', 'Yardas en sack', null, 'Yd en sack'],
+const HIZO = [['att', 'Pases', (x) => `${x.comp || 0}/${x.att}`], ['pyd', 'Yardas de pase', null, 'Yd de pase'], ['tdp', 'TD de pase'], ['convp', 'Conversión lanzada', (x) => `+${x.convp}`, 'Conversión'], ['intl', 'INT lanzadas'], ['malp', 'Malos pases'], ['skyd', 'Yardas en sack', null, 'Yd en sack'],
   ['rec', 'Recepciones'], ['ryd', 'Yardas atrapadas', null, 'Yd atrapadas'], ['drop', 'Soltados'], ['car', 'Corridas'], ['ruyd', 'Yardas corridas', null, 'Yd corridas'],
   ['td', 'TD'], ['conv', 'Conversión atrapada', (x) => `+${x.conv}`, 'Conversión'], ['safc', 'Safety en contra'],
-  ['band', 'Banderas'], ['tap', 'Tapados'], ['pres', 'Presiones'], ['intn', 'INT'], ['sack', 'Sacks'], ['saf', 'Safeties']];
+  ['band', 'Banderas'], ['tap', 'Tapados'], ['pres', 'Presiones'], ['intn', 'INT'], ['sack', 'Sacks'], ['saf', 'Safeties'], ['mvp', 'MVP votado']];
 // lo que hizo, dentro de su tarjeta: una rejilla de números con su nombre, primero el ataque y luego la defensa (solo lo que sí hizo)
-const hizoJuego = (x) => HIZO.filter(([k]) => x[k]).map(([k, n, f, c]) => `<div><strong class="num">${f ? f(x) : ydTxt(x[k])}</strong><span>${c || n}</span></div>`).join('');
+const hizoJuego = (x) => HIZO.filter(([k]) => x[k] && k !== 'mvp').map(([k, n, f, c]) => `<div><strong class="num">${f ? f(x) : ydTxt(x[k])}</strong><span>${c || n}</span></div>`).join('');
 // de dónde salen sus puntos: solo lo que le dio (o le quitó) puntos, con su cuenta, y el total
 const PESO = Object.fromEntries(PUNTOS.map(([k, , w]) => [k, w]));
 const puntosJuego = (x) => HIZO.map(([k, n]) => { const v = Math.round((x[k] || 0) * (PESO[k] || 0) * 10) / 10;
-  return v ? `<div class="rg"><span>${n}${['conv', 'convp'].includes(k) ? '' : ` <i class="num">${ydTxt(x[k])}</i>`}</span><b class="num${v < 0 ? ' neg' : ''}">${fmtPts(v)}</b></div>` : ''; }).join('') + `<div class="rg tot"><span>Total</span><b class="num">${puntosDe(x)}</b></div>`;
+  return v ? `<div class="rg"><span>${n}${['conv', 'convp', 'mvp'].includes(k) ? '' : ` <i class="num">${ydTxt(x[k])}</i>`}</span><b class="num${v < 0 ? ' neg' : ''}">${fmtPts(v)}</b></div>` : ''; }).join('') + `<div class="rg tot"><span>Total</span><b class="num">${puntosDe(x)}</b></div>`;
 function jugpartido() {
   const g = JUEGOS.find((x) => x.id === st.juego), r = R(g.rival), p = P(st.jug), x = g.st[p.id];
   const [res, , resTxt] = resDe(g.nos, g.ellos);
@@ -1845,7 +1933,7 @@ function partido() {
   if (g.solo) return `<div class="pant"><div class="cuerpo">${est()}<div class="fila-v vuelta">${volver()}${btnCompartir(g.id)}</div>${cabeza}<div class="card" style="margin-top:12px"><div class="pp">De este partido solo se registró el marcador.</div></div></div>${nav()}</div>`;
   const c = cuentas([g.partido]), ct = cuentas(JUEGOS.filter((x) => !x.solo).map((x) => x.partido)), bal = c.rob - c.perd, enVivo = st.partido && !st.partido.corrige;
   // todos, del que más puntos hizo al que menos; el primero es el jugador del partido
-  const ids = Object.keys(g.st).filter((id) => P(id)).sort((a, b) => puntosDe(g.st[b]) - puntosDe(g.st[a]));
+  const ids = Object.keys(g.st).filter((id) => P(id)).sort((a, b) => puntosDe(g.st[b]) - puntosDe(g.st[a])), votado = P(g.partido.mvp) ? g.partido.mvp : null;
   // el partido en 4 números (22-nov): cada uno contra la temporada; se tocan y brincan a su área de Métricas
   const cuadro = (tit, v, de, tempo, area, lt, mal, linea = tempo) => `<button${sel({ t: tit, v: de ? `${v} de ${de} (${pct(v, de)}%)` : v, s: linea, l: ['metir', area], lt })}><span>${tit}</span><strong class="num${mal ? ' mal' : ''}">${v}${de ? ` <i>de ${de}</i>` : ''}</strong><em>${tempo}</em></button>`;
   const g4 = `<div class="card"><div class="g4" data-grupo>${cuadro('Series con TD', c.seriesTD, c.seriesO, `temporada ${pct(ct.seriesTD, ct.seriesO)}%`, 'ataque', 'Ver Ataque')}${cuadro('Series paradas', c.fren, c.seriesD, `temporada ${pct(ct.fren, ct.seriesD)}%`, 'defensa', 'Ver Defensa')}
@@ -1854,7 +1942,8 @@ function partido() {
   ${cabeza}
   ${widget('anot', 'Anotaciones', anotaciones(g))}
   ${widget('jgs', 'Jugadores<small>toca a uno para ver su partido</small>', `<div class="card jgs">${ids.map((id, i) => { const x = g.st[id], p = P(id), mvp = !i && puntosDe(x) > 0;
-    return `<button class="pp${mvp ? ' mvp' : ''}" data-a="jugp" data-v="${id}">${foto(p)}<div>${mvp ? '<span class="eti">Jugador del partido</span>' : ''}<b class="corta">${p.nombre}</b><small class="corta" style="display:block">${lineaDe(x, qbDe(g) === id)}</small></div><div class="der"><strong class="num">${puntosDe(x)}</strong><small>pts</small></div></button>`; }).join('') || '<div class="pp">Sin jugadas por jugador</div>'}</div>`)}
+    return `<button class="pp${mvp ? ' mvp' : ''}" data-a="jugp" data-v="${id}">${foto(p)}<div>${mvp ? '<span class="eti">Jugador del partido</span>' : ''}${id === votado ? ` <span class="eti voto">${mvp ? 'MVP' : 'MVP votado'}</span>` : ''}<b class="corta">${p.nombre}</b><small class="corta" style="display:block">${lineaDe(x, qbDe(g) === id)}</small></div><div class="der"><strong class="num">${puntosDe(x)}</strong><small>pts</small></div></button>`; }).join('') || '<div class="pp">Sin jugadas por jugador</div>'}
+    <button class="pp" data-a="mvpver"${votado ? '' : ' style="color:var(--acento)"'}>${votado ? foto(P(votado)) : '<span class="foto"><span><span class="ini" style="font-size:22px;font-weight:500">+</span></span></span>'}<div><b>MVP votado</b><small class="corta" style="display:block">${votado ? `${P(votado).nombre} · +3 puntos` : 'El que votó el equipo · +3 puntos'}</small></div><div class="der"><small style="color:var(--acento);font-weight:700">${votado ? 'Cambiar' : 'Elegir'}</small></div></button></div>`)}
   ${widget('g4', 'El partido en 4 números', g4)}
   ${c.lista.length ? widget('conex', 'Conexiones', `<div class="card">${conexiones(c.lista.slice(0, 4))}</div>`) : ''}
   ${enVivo ? '<div class="sinquerer" style="margin-top:22px"><span>Para corregir este partido, primero termina el de hoy.</span></div>' : ''}
@@ -1993,8 +2082,17 @@ function hoja() {
     const tit = st.sel === 'incompleto' ? '¿Quién soltó el pase?' : td ? (st.corre ? 'TD por corrida: ¿quién anotó?' : 'TD de pase: ¿quién la atrapó?') : x[3];
     h = `${barra(`<h3>${tit}</h3>`, 'cerrar')}${lz}${pjsRecientes(st.partido.lado, 'quien', pasa ? q : null)}`;
   }
-  // pase incompleto: solo castiga si se le cayó (al que la soltó); el mal pase o el que no se podía agarrar no le quita a nadie, tampoco al QB
-  if (st.hoja === 'inc') h = '<div class="ops"><button class="op prim" data-a="inc" data-v="cayo">Pase soltado (era atrapable)</button><button class="op" data-a="inc" data-v="mal">Mal pase o no atrapable</button></div>';
+  // pase incompleto, en tres (Mau, 24-nov): mal pase (culpa del QB, le resta), incompleto (buen pase que taparon o lo que sea: nadie pierde) y la soltó (el receptor; luego quién)
+  if (st.hoja === 'inc') { const j = st.incDe === 'corrige' ? st.partido.jugadas[st.edita] : null, cur = j && incDe(j);
+    h = `<div class="ops tres">${INC.map(([v, n]) => `<button class="op${cur === v ? ' prim' : ''}" data-a="inc" data-v="${v}">${n}</button>`).join('')}</div>`; }
+  // la jugada de la pulsera: su número, por grupo; «No sé» sigue sin ella
+  if (st.hoja === 'jg') { const cur = st.jgDe === 'corrige' ? (st.partido.jugadas[st.edita] || {}).jg : null;
+    h = `${barra('<h3>¿Qué jugada fue?</h3>', 'cerrar')}${LIBRO.map(([g, l], i) => `<h4 class="sub">${i + 1} · ${esc(g)}</h4><div class="jgn">${l.map((n, k) => `<button class="op${n === cur ? ' prim' : ''}" data-a="jg" data-v="${esc(n)}" aria-label="${i + 1}${k + 1}, ${esc(n)}">${i + 1}${k + 1}</button>`).join('')}</div>`).join('')}
+      <div class="ops" style="margin-top:14px"><button class="op sec" data-a="jg" data-v="">No sé</button></div>`; }
+  // el MVP que votó el equipo (fuera de la app): uno por partido, entre los que vinieron
+  if (st.hoja === 'mvp') { const g = JUEGOS.find((x) => x.id === st.juego);
+    if (g && g.partido) { const van = (g.partido.van || []).filter(P), ids = van.length ? van : Object.keys(g.st).filter(P), cur = g.partido.mvp;
+      h = `<h3>¿Quién fue el MVP?</h3><div class="pjs">${ids.map((id) => botonPj(id, 'mvp', id === cur)).join('')}</div>${cur ? '<div class="ops" style="margin-top:12px"><button class="op sec" data-a="mvp" data-v="">Quitar el MVP</button></div>' : ''}`; } }
   if (st.hoja === 'como') h = '<h3>¿Cómo fue el TD?</h3><div class="ops dos"><button class="op prim" data-a="como" data-v="pase">Pase</button><button class="op prim" data-a="como" data-v="corrida">Corrida</button></div>';
   if (st.hoja === 'qb') { const deJugada = st.qbDe !== 'partido', cur = st.qbDe === 'corrige' ? (st.partido.jugadas[st.edita] || {}).qb : deJugada ? lanzo() : st.partido.qb;
     // el del partido: arriba a la derecha, cómo funciona la app (para quien agarra un celular que ya tiene todo)
@@ -2010,7 +2108,9 @@ function hoja() {
         <div class="ops dos acc"><button class="op" data-a="cqp">Cambiar jugada</button><button class="op borrar" data-a="borrar">Borrar</button></div>
         ${st.partido.corrige ? '<button class="op sec" data-a="insaqui" style="width:100%;margin-top:10px;height:48px;font-size:15px">Insertar jugada después de esta</button>' : ''}
         ${['pase', 'incompleto', 'int', 'pick6c'].includes(j.k) || (j.k === 'td' && j.qb) ? `<div style="margin-top:12px">${campoLanzo(j.qb || st.partido.qb, 'corrige')}</div>` : j.k === 'td' ? '<button class="campo" data-a="lanzover" data-v="corrige" style="margin-top:12px"><div><span class="l">Tipo</span><b>Corrida, sin pase</b></div><u>Cambiar</u></button>' : ''}
-        ${j.k === 'incompleto' && j.id ? `<button class="campo" data-a="ccayo" style="margin-top:12px"><div><span class="l">¿Pase soltado?</span><b>${j.drop ? 'Sí' : 'No'}</b></div><u>Cambiar</u></button>` : ''}
+        ${j.k === 'incompleto' ? `<button class="campo" data-a="cinc" style="margin-top:12px"><div><span class="l">Incompleto</span><b>${INC.find(([v]) => v === incDe(j))[1]}</b></div><u>Cambiar</u></button>` : ''}
+        ${j.lado === 'O' && PULSERA.includes(j.k) && (LIBRO.length || j.jg) ? `<button class="campo" data-a="cjg" style="margin-top:12px"><div style="min-width:0"><span class="l">Jugada de la pulsera</span><b class="corta" style="display:block">${j.jg ? `${numJg(j.jg) ? numJg(j.jg) + ' · ' : ''}${esc(j.jg)}` : 'No sé'}</b></div><u>Cambiar</u></button>` : ''}
+        ${j.lado === 'D' && ['bandera', 'tdr'].includes(j.k) ? `<h4 class="sub">¿Fue pase o corrida?</h4>${prBotones(j)}` : ''}
         ${conYardas(j) ? `<button class="campo" data-a="cyd" style="margin-top:12px"><div><span class="l">Yardas</span><b>${j.yd == null ? 'Sin yardas' : fmtYd(j.yd) + ' yd'}</b></div><u>Cambiar</u></button>` : ''}
         ${['td', 'pick6', 'tdr', 'pick6c'].includes(j.k) ? `<button class="campo" data-a="cconv" style="margin-top:12px"><div><span class="l">Conversión</span><b>${!j.conv ? 'No se intentó' : `De ${j.conv[0]} · ${j.conv[1] ? 'buena' + (!['tdr', 'pick6c'].includes(j.k) ? `, atrapó ${nom(j.convId)}` : '') : 'fallida'}`}</b></div><u>Cambiar</u></button>` : ''}
         ${j.k === 'castigo' ? `<h4 class="sub">Castigo</h4><div class="ops dos acc"><button class="op${j.v === 'favor' ? ' prim' : ''}" data-a="ccast" data-v="favor">Al rival</button><button class="op${j.v === 'contra' ? ' prim' : ''}" data-a="ccast" data-v="contra">A Belugas</button></div>` : ''}
@@ -2028,18 +2128,25 @@ function hoja() {
     if (j && c.paso) { const q = lanzo();
       h = `<h3>¿Quién la atrapó?</h3>${campoLanzo(q, 'conv')}${pjsRecientes(j.lado, 'convq', q)}`; }
     else if (j) h = `<h3>${['tdr', 'pick6c'].includes(j.k) ? `Conversión de ${r.corto}` : 'Conversión'}</h3>
+      ${j.k === 'tdr' ? `<h4 class="sub" style="margin-top:0">El TD, ¿fue pase o corrida?</h4>${prBotones(j)}<h4 class="sub">Y la conversión</h4>` : ''}
       <div class="convf">${[1, 2].map((n) => `<div class="cf"><div class="cn">De ${n}</div><button class="op prim" data-a="conv" data-v="${n}-1">Buena</button><button class="op" data-a="conv" data-v="${n}-0">Fallida</button></div>`).join('')}</div>
       <div class="ops" style="margin-top:4px"><button class="op sec" data-a="conv" data-v="0">No se intentó</button></div>`;
   }
   if (st.hoja === 'ayuda') h = `<h3>Ajustes</h3>
     <button class="aj-fila" data-a="tour"><span>${AYUDA_SVG}</span>Cómo funciona la app<em>›</em></button>
-    <button class="aj-fila" data-a="antes"><span><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg></span>Libro de jugadas y pulsera<em>›</em></button>
+    ${PRUEBA ? '' : `<button class="aj-fila" data-a="antes"><span><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg></span>Libro de jugadas y pulsera<em>›</em></button>`}
+    ${PRUEBA ? `<button class="aj-fila" data-a="reinicia"><span>${X_SVG}</span>Reiniciar la prueba (borra solo lo de esta versión)<em>›</em></button>` : ''}
     <div class="ops" style="margin-top:14px"><button class="op prim" data-a="cerrar">Listo</button></div>`;
   // la barrita de arrastre no servía en la página: toda hoja lleva su ✕ arriba a la derecha (Iker, 17-nov)
   if (!h.includes('class="hbar"')) h = /^\s*<h3>/.test(h) ? h.replace(/^\s*<h3>[\s\S]*?<\/h3>/, (t) => barra(t, 'cerrar')) : barra('<span></span>', 'cerrar') + h;
   return `<div class="velo" data-a="cerrar"></div><div class="hoja${st.hoja === 'mas' ? ' vidrio' : ''}">${h}</div>`;
 }
 // quién lanzó (el QB del partido por omisión); se cambia solo para esta jugada
+// los tres incompletos: [valor, cómo se dice]; de una jugada, cuál es (las de antes del 24-nov sin «soltado» son incompleto a secas: no restan)
+const INC = [['mal', 'Mal pase'], ['inc', 'Incompleto'], ['cayo', 'La soltó']];
+const incDe = (j) => (j.drop ? 'cayo' : j.mal ? 'mal' : 'inc');
+// en defensa, de la bandera y del TD del rival: ¿fue pase o corrida? Dos botones que se pueden saltar; el encendido se apaga con otro toque
+const prBotones = (j) => `<div class="ops dos acc">${[['pase', 'Pase'], ['corrida', 'Corrida']].map(([v, n]) => `<button class="op${j.pr === v ? ' prim' : ''}" data-a="pr" data-v="${v}" aria-pressed="${j.pr === v}">${n}</button>`).join('')}</div>`;
 const campoLanzo = (q, de) => `<button class="campo" data-a="lanzover" data-v="${de}"><div class="izq">${q && P(q) ? foto(P(q)) : ''}<div style="min-width:0"><span class="l">Lanzó</span><b class="corta" style="display:block">${nom(q)}${q === st.partido.qb ? ' · QB' : ''}</b></div></div><u>Cambiar</u></button>`;
 // un texto de jugada que no cabe en su renglón (el aviso, «Última», las listas) se cambia por su versión más corta, de data-alt, hasta que quepa; solo si ni la
 // más corta cabe se recorta con puntos (revisión, 22-nov: nada importante cortado y nada en dos renglones). Mide todos y luego cambia: pocas pasadas de layout
@@ -2147,7 +2254,7 @@ const recientes = (lado) => { const v = new Set(); [...st.partido.jugadas].rever
 const otroLado = (id, lado) => !!ladoDe(id) && ladoDe(id) !== lado;
 const ladoDe = (id) => (P(id) || {}).lado || '';
 const fmtYd = (y) => (y > 0 ? '+' : '') + y;
-const TXT = { pase: (n) => `pase a ${n}`, corrida: (n) => `corrida de ${n}`, incompleto: (n) => (n ? `pase incompleto para ${n}` : 'pase incompleto, mal pase'), parada: (n) => (n ? `${n} detenido` : 'jugada detenida'), buena: (n) => `buena jugada de ${n}`, bandera: (n) => `bandera quitada por ${n}`, tapado: (n) => `pase tapado por ${n}`, presion: (n) => `presión de ${n}, incompleto`, fallo: () => 'pase incompleto', intn: (n) => `intercepción de ${n}`, sack: (n) => `sack de ${n}`, safety: (n) => `safety de ${n}` };
+const TXT = { pase: (n) => `pase a ${n}`, corrida: (n) => `corrida de ${n}`, incompleto: (n) => (n ? `pase incompleto para ${n}` : 'pase incompleto'), parada: (n) => (n ? `${n} detenido` : 'jugada detenida'), buena: (n) => `buena jugada de ${n}`, bandera: (n) => `bandera quitada por ${n}`, tapado: (n) => `pase tapado por ${n}`, presion: (n) => `presión de ${n}, incompleto`, fallo: () => 'pase incompleto', intn: (n) => `intercepción de ${n}`, sack: (n) => `sack de ${n}`, safety: (n) => `safety de ${n}` };
 // n: qué tan corto (revisión, 22-nov: el aviso y las listas van en un renglón sin cortar lo que importa, las yardas y la conversión): 0 completo;
 // 1 sin quién lanzó ni «en su zona» y la conversión como «+1 de Rodrigo»; 2 además sin quién atrapó la conversión
 function textoDe(j, n = 0) {
@@ -2162,6 +2269,7 @@ function textoDe(j, n = 0) {
   if (j.k === 'safetyc') return j.id && !n ? `safety en contra, ${nom(j.id)} en su zona` : 'safety en contra';
   if (j.k === 'int') return `intercepción lanzada por ${nom(j.qb)}`;
   if (j.k === 'incompleto' && j.drop) return `pase soltado por ${nom(j.id)}`;
+  if (j.k === 'incompleto' && j.mal) return n ? 'mal pase' : `mal pase de ${nom(j.qb)}`;
   return (TXT[j.k] || (() => String(j.k)))(SIN_QUIEN.includes(j.k) ? (j.id && P(j.id) ? P(j.id).corto : '') : nom(j.id)) + (j.drop ? ' · soltado' : '') + (j.yd != null ? ` · ${fmtYd(j.yd)} yd` : '');
 }
 // 1ª y 10: ya no se marca (Iker, 17-nov: la serie se acaba con Ataque/Defensa); ya no da puntos (Mau, 19-nov), tampoco en las jugadas viejas que la traen
@@ -2232,7 +2340,7 @@ function avisoDe(x, opc, pref = '') {
 }
 function guarda(j) {
   const p = st.partido, t = Date.now(), i = st.ins ? p.jugadas.findIndex((x) => x.uid === st.ins) : -1;
-  j = { uid: nuevoUid(), t, ver: t, lado: p.lado, por: APARATO, id: null, ...j };
+  j = { uid: nuevoUid(), t, ver: t, lado: p.lado, por: APARATO, id: null, ...j, ...(st.jg && PULSERA.includes(j.k) ? { jg: st.jg, jgg: grupoJg(st.jg) } : {}) }; st.jg = null;
   // la que faltó va entre la escogida y la siguiente (y no se compara con sus vecinas como repetida)
   if (i >= 0 && p.jugadas[i + 1]) { j.t = (p.jugadas[i].t + p.jugadas[i + 1].t) / 2; j.unica = true; }
   st.ins = null;
@@ -2279,7 +2387,7 @@ function juegoDe(p) {
     if (['pase', 'corrida', 'incompleto', 'parada', 'sackr', 'int', 'pick6c', 'td'].includes(j.k)) jug++;
     if (['pase', 'td'].includes(j.k) || (j.k === 'corrida' && !(y < 0))) fun++; // la corrida para atrás no salió bien
     if (j.k === 'pase' || pasTD) { s(j.id, 'rec'); s(j.id, 'tgt'); s(qb, 'comp'); s(qb, 'att'); if (y != null) s(qb, 'pyd', y); }
-    if (j.k === 'incompleto') { s(qb, 'att'); s(j.id, 'tgt'); if (j.drop) s(j.id, 'drop'); } // tgt: los pases que le lanzaron (atrapados o no); el mal pase sin nombre no es de nadie
+    if (j.k === 'incompleto') { s(qb, 'att'); s(j.id, 'tgt'); if (j.drop) s(j.id, 'drop'); else if (j.mal) s(qb, 'malp'); } // tgt: los pases que le lanzaron (atrapados o no); el mal pase sin nombre no es de nadie
     if (j.k === 'int' || j.k === 'pick6c') { per++; s(qb, 'att'); s(qb, 'intl'); }
     if (j.k === 'corrida' || (j.k === 'td' && !j.qb)) s(j.id, 'car'); // el TD corriendo también es una corrida (como el de pase es recepción)
     if (j.k === 'sackr') { s(j.id || qb0, 'sackr'); if (y != null && y < 0) s(j.id || qb0, 'skyd', -y); } // el sack resta sus yardas
@@ -2296,6 +2404,7 @@ function juegoDe(p) {
     if (j.k === 'sack') s(j.id, 'sack');
     if (j.k === 'safety') s(j.id, 'saf');
   });
+  s(p.mvp, 'mvp'); // el MVP que votó el equipo
   return { id: p.id, rival: p.rival, fecha: fechaDe(p.dia || p.inicio), nos: p.nos, ellos: p.ellos, jugadas: jug, funcion: fun, perdidas: per, primeras: prim, primerasEllos: primEllos, convs, tds: tds.filter((x) => x[0]), conv: tds.filter((x) => x[0] && x[3]).map((x) => x[3]), st: est_, nuevo: true };
 }
 function empezar(vino) {
@@ -2345,7 +2454,7 @@ function tomaLocal(txt) {
   else if (q && !p && !(T.juegos[q.id] || {}).terminado) { st.partido = revive(q); HOY = esRival(q.rival) ? q.rival : null; }
   recalcular(); if (st.partido) rehacer(st.partido); terminoEnOtro();
 }
-addEventListener('storage', (e) => { if (e.key !== LOCAL || !e.newValue || e.newValue === escrito || st.hoja || st.escribe || st.practicando) return; escrito = e.newValue; tomaLocal(e.newValue); pintar(); });
+addEventListener('storage', (e) => { if (e.key !== LS + LOCAL || !e.newValue || e.newValue === escrito || st.hoja || st.escribe || st.practicando) return; escrito = e.newValue; tomaLocal(e.newValue); pintar(); });
 
 // ---------- la nube y el relevo: Supabase «belugas», con la llave del equipo que viaja en el link (#k=) ----------
 // La app guarda en sus propias filas (no toca la de la app de antes): «-vivo» es el partido que se está marcando (chica: se lee
@@ -2353,7 +2462,8 @@ addEventListener('storage', (e) => { if (e.key !== LOCAL || !e.newValue || e.new
 // jugada por jugada (uid), y sube solo si trae algo nuevo; si otro guardó en medio, vuelve a leer y a juntar.
 // Sin señal todo queda en el teléfono y sube al volver.
 const NUBE = 'https://zyuwghznifofdkaiozfb.supabase.co/rest/v1/rpc/', ANON = 'sb_publishable_b48BypnxEtWiDy6_AoQ0cg_8uGHNd2H'; // llave pública: solo deja usar las dos funciones
-let clave = (location.hash.match(/k=([\w-]{24,})/) || [])[1] || lsGet('tochito.k');
+// en la de prueba solo vale una llave de prueba (empieza con «prueba-»): la del equipo se ignora aunque venga en el link
+let clave = (location.hash.match(PRUEBA ? /k=(prueba-[\w-]{17,})/ : /k=([\w-]{24,})/) || [])[1] || lsGet('tochito.k');
 if (clave) { lsSet('tochito.k', clave); if (!location.hash.includes(clave)) history.replaceState(null, '', '#k=' + clave); }
 const rpc = (f, body) => fetch(NUBE + f, { method: 'POST', headers: { apikey: ANON, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined })
   .then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
@@ -2362,8 +2472,8 @@ const esHoy = (t) => new Date(t).toDateString() === new Date().toDateString();
 const viejo = (p) => !esHoy(p.inicio) && Date.now() - p.inicio > 6 * 3600e3; // un partido de otro día
 const fechaDe = (t) => (esHoy(t) ? 'Hoy' : new Date(t).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }).replace('.', ''));
 // el partido como viaja y como se guarda: solo lo que se marcó (el marcador y lo demás se cuentan de nuevo con rehacer)
-const aEnviar = (p) => ({ id: p.id, inicio: p.inicio, dia: p.dia, rival: p.rival, van: p === st.partido ? st.van : p.van || [], qb: p.qb, metaVer: p.metaVer, cambios: p.cambios || [], borradas: p.borradas || {}, terminado: !!p.terminado, terminadoVer: p.terminadoVer || 0,
-  aparatos: { [APARATO]: Date.now(), ...p.aparatos }, jugadas: p.jugadas.map(({ uid, t, ver, viva, k, id, v, conv, convId, convQb, qb, yd, drop, pd, unica, lado, por }) => ({ uid, t, ver, viva, k, id, v, conv, convId, convQb, qb, yd, drop, pd, unica, lado, por })) });
+const aEnviar = (p) => ({ id: p.id, inicio: p.inicio, dia: p.dia, rival: p.rival, van: p === st.partido ? st.van : p.van || [], qb: p.qb, metaVer: p.metaVer, mvp: p.mvp, mvpVer: p.mvpVer, cambios: p.cambios || [], borradas: p.borradas || {}, terminado: !!p.terminado, terminadoVer: p.terminadoVer || 0,
+  aparatos: { [APARATO]: Date.now(), ...p.aparatos }, jugadas: p.jugadas.map(({ uid, t, ver, viva, k, id, v, conv, convId, convQb, qb, yd, drop, mal, jg, jgg, pr, pd, unica, lado, por }) => ({ uid, t, ver, viva, k, id, v, conv, convId, convQb, qb, yd, drop, mal, jg, jgg, pr, pd, unica, lado, por })) });
 // dos copias del mismo partido: cada jugada queda en su versión más nueva, lo borrado no regresa (salvo que se haya
 // restaurado después) y rival, quiénes van, QB y «terminado» son del último que los cambió
 function juntar(a, b) {
@@ -2371,16 +2481,16 @@ function juntar(a, b) {
   const borradas = { ...a.borradas };
   for (const [u, t] of Object.entries(b.borradas || {})) borradas[u] = Math.max(borradas[u] || 0, t);
   const una = (xs, ys, mejor) => { const m = new Map(); for (const x of [...(xs || []), ...(ys || [])]) if (!m.has(x.uid) || mejor(x, m.get(x.uid))) m.set(x.uid, x); return [...m.values()]; };
-  const meta = (b.metaVer || 0) > (a.metaVer || 0) ? b : a, fin = (b.terminadoVer || 0) > (a.terminadoVer || 0) ? b : a;
+  const meta = (b.metaVer || 0) > (a.metaVer || 0) ? b : a, fin = (b.terminadoVer || 0) > (a.terminadoVer || 0) ? b : a, mv = (b.mvpVer || 0) > (a.mvpVer || 0) ? b : a; // el MVP, del último que lo cambió
   const vv = new Map(); for (const x of [...(a.jugadas || []), ...(b.jugadas || [])]) if (x.viva) vv.set(x.uid, Math.max(vv.get(x.uid) || 0, x.viva)); // el «deshacer el borrado» más nuevo vale para las dos copias
-  return { ...a, rival: meta.rival, dia: meta.dia, van: meta.van, qb: meta.qb, metaVer: meta.metaVer, terminado: !!fin.terminado, terminadoVer: fin.terminadoVer || 0, borradas, aparatos: { ...b.aparatos, ...a.aparatos },
+  return { ...a, rival: meta.rival, dia: meta.dia, van: meta.van, qb: meta.qb, metaVer: meta.metaVer, mvp: mv.mvp, mvpVer: mv.mvpVer, terminado: !!fin.terminado, terminadoVer: fin.terminadoVer || 0, borradas, aparatos: { ...b.aparatos, ...a.aparatos },
     jugadas: una(a.jugadas, b.jugadas, (x, y) => (x.ver || 0) > (y.ver || 0)).map((j) => (vv.has(j.uid) && vv.get(j.uid) !== j.viva ? { ...j, viva: vv.get(j.uid) } : j)), cambios: una(a.cambios, b.cambios, () => false) };
 }
 // sin las jugadas borradas
 const limpia = (p) => (p ? { ...p, jugadas: (p.jugadas || []).filter((j) => !borrada(p, j)) } : p);
 // la huella de un partido: si dos copias tienen la misma, no hay nada que subir ni que pintar
 const fp = (p) => (!p ? '' : [p.id, (p.jugadas || []).map((j) => j.uid + ':' + j.ver + ':' + (j.viva || 0)).sort().join(), (p.cambios || []).map((c) => c.uid).sort().join(), Object.entries(p.borradas || {}).map(([u, t]) => u + ':' + t).sort().join(),
-  p.terminado ? 1 : 0, p.terminadoVer || 0, p.qb || '', p.metaVer || 0, p.rival || '', (p.van || []).join(), Object.keys(p.aparatos || {}).sort().join()].join('|'));
+  p.terminado ? 1 : 0, p.terminadoVer || 0, p.qb || '', p.metaVer || 0, p.rival || '', (p.van || []).join(), Object.keys(p.aparatos || {}).sort().join(), p.mvp || '', p.mvpVer || 0].join('|'));
 // la temporada de dos aparatos: cada jugador en su versión más nueva, quién sale de inicio del último que lo cambió, y cada partido juntado
 function juntarTemp(a, b) {
   const pm = new Map(); for (const x of [...(a.plantel || []), ...(b.plantel || [])]) if (!pm.has(x.id) || (x.ver || 0) > (pm.get(x.id).ver || 0)) pm.set(x.id, x);
@@ -2584,6 +2694,7 @@ function hojaCuanto() {
   return `<div class="hoja cuanto">${barra('<h3>¿Cuánto avanzó?</h3>', 'sinyd', 'rgok', 'Guardar las yardas')}
     <div class="rg-pmf"><button class="rg-b" data-pm="-1" aria-label="Menos">${signo(false)}</button><div class="rg-vw"><span class="rg-anuncio" id="rganuncio"></span><span class="rg-v num" id="rgv">${fmtYd(c.yd)}<small>yd</small></span></div><button class="rg-b" data-pm="1" aria-label="Más">${signo(true)}</button></div>
     <div class="rg-saltos">${[5, 10, 20, 30].map((v) => (j.k === 'sackr' ? -v : v)).map((v) => `<button data-salto="${v}">${v}<small>yd</small></button>`).join('')}</div>
+    ${j.lado === 'D' && j.k === 'bandera' ? `<h4 class="sub">¿Fue pase o corrida?</h4>${prBotones(j)}` : ''}
     <div hidden>${regla(a)}</div></div>`; // la regla sigue escondida: así los topes, los colores y el «¡Touchdown!» funcionan igual
 }
 function abrirCuanto(j) { if (st.yds !== 'si') return; st.cuanto = { uid: j.uid, yd: j.yd || 0 }; st.hoja = 'cuanto'; }
@@ -2698,7 +2809,7 @@ const A = {
     if (st.hoja === 'conv' && st.conv && st.conv.paso) { st.conv.paso = null; return; }
     if (st.hoja === 'conv' && st.conv) { const j = porUid(st.conv.uid); if (j && j.conv === undefined) avisar({ txt: `${j.txt} · sin conversión`, id: j.id, tipo: j.tipo, uid: j.uid, accion: ['ponerconv', 'Agregar', j.uid] }, 6000); }
     if (st.hoja === 'cuanto') { const c = st.cuanto; st.cuanto = null; st.hoja = null; st.lanzo = null; trasYardas(c && porUid(c.uid)); return; }
-    st.lanzo = null; st.hoja = null;
+    st.lanzo = null; st.hoja = null; st.jg = null;
   },
   empezar: () => empezar(),
   compartir: (v) => compartir(v),
@@ -2723,7 +2834,18 @@ const A = {
   // abrir o cerrar una serie de la lista
   serie: (v) => { const p = st.partido || (st.final && st.final.partido); if (!p) return; const k = `${p.id}:${v}`, enJuego = p === st.partido && +v === p.ns && p.nsUsada; st.abre[k] = !(st.abre[k] ?? enJuego); },
   res: (v) => {
-    st.toque = v; st.sel = v; st.lanzo = null; st.corre = false;
+    st.toque = v; st.sel = v; st.lanzo = null; st.corre = false; st.jg = null; st.jgDe = null; st.incDe = null;
+    // en ataque, primero la jugada de la pulsera (un toque, o «No sé»); en la práctica no se pregunta
+    if (st.partido.lado === 'O' && PULSERA.includes(v) && LIBRO.length && !st.practicando) { st.hoja = 'jg'; return; }
+    A.res2(v);
+  },
+  // la pulsera: el número escogido (o «No sé», vacío) y sigue la jugada; desde Corregir, cambia la de esa jugada
+  jg: (v) => {
+    if (st.jgDe === 'corrige') { const j = st.partido.jugadas[st.edita]; st.jgDe = null; st.hoja = null; if (j) corrige(j, (x) => { x.jg = v || null; x.jgg = v ? grupoJg(v) : null; }); return; }
+    st.jg = v || null; A.res2(st.sel);
+  },
+  cjg: () => { st.jgDe = 'corrige'; st.hoja = 'jg'; },
+  res2: (v) => {
     if (v === 'td') { st.hoja = 'como'; return; }
     if (v === 'incompleto') { st.cayo = false; st.hoja = 'inc'; return; }
     if (v === 'pick6c') { const j = guarda({ k: 'pick6c', qb: st.partido.qb }); st.hoja = null; abrirConv(j); return; }
@@ -2732,15 +2854,23 @@ const A = {
   },
   // TD: primero cómo fue; el de pase da TD de pase al QB
   como: (v) => { st.corre = v === 'corrida'; st.hoja = 'quien'; },
-  // pase incompleto que falló solo: sin nombre, no da puntos
+  // incompleto: la soltó pide quién; el mal pase (le resta al QB) y el incompleto a secas (no le resta a nadie) se guardan ya, sin nombre
   inc: (v) => {
+    if (st.incDe === 'corrige') { const j = st.partido.jugadas[st.edita]; st.incDe = null; if (!j) { st.hoja = null; return; }
+      st.hoja = v === 'cayo' && !j.id ? 'corrige' : null; corrige(j, (x) => { x.drop = v === 'cayo'; x.mal = v === 'mal'; }); return; } // la soltó sin nombre: Corregir sigue abierto para decir quién
     if (v === 'cayo') { st.sel = 'incompleto'; st.cayo = true; st.hoja = 'quien'; return; }
-    // mal pase: se guarda ya, sin nombre (no resta a nadie)
-    st.hoja = null; guarda({ k: 'incompleto', qb: st.partido.qb });
+    st.hoja = null; guarda({ k: 'incompleto', qb: st.partido.qb, ...(v === 'mal' ? { mal: true } : {}) });
   },
+  cinc: () => { st.incDe = 'corrige'; st.hoja = 'inc'; },
+  // ¿pase o corrida? de la bandera (en «¿Cuánto avanzó?»), del TD del rival (en su conversión) o desde Corregir: se guarda en la jugada sin cerrar la hoja
+  pr: (v) => { const p = st.partido, j = !p ? null : st.hoja === 'cuanto' && st.cuanto ? porUid(st.cuanto.uid) : st.hoja === 'conv' && st.conv ? porUid(st.conv.uid) : st.hoja === 'corrige' ? p.jugadas[st.edita] : null;
+    if (!j) return; j.pr = j.pr === v ? null : v; j.ver = sube(j.ver); subir(); },
+  // el MVP votado: se pone, se cambia o se quita (vacío) en la ficha del partido; viaja con el partido a los otros celulares
+  mvpver: () => { st.hoja = 'mvp'; },
+  mvp: (id) => { const q = T.juegos[st.juego]; st.hoja = null; if (!q || (q.mvp || '') === (id || '')) return; aTemporada({ ...q, mvp: id || null, mvpVer: sube(q.mvpVer) }); },
+  reinicia: () => { if (!PRUEBA) return; st.practicando = true; try { Object.keys(localStorage).filter((k) => k.startsWith(LS)).forEach((k) => localStorage.removeItem(k)); } catch { /* sin guardado */ } location.reload(); },
   // «¿se le cayó?», desde el aviso del incompleto ya con nombre (o desde Corregir)
   cayo: () => { const ta = st.toast, j = ta && porUid(ta.uid); if (!j) return; corrige(j, (x) => { x.drop = !x.drop; }, 'Guardado'); },
-  ccayo: () => { const j = st.partido.jugadas[st.edita]; st.hoja = null; corrige(j, (x) => { x.drop = !x.drop; }); },
   qbver: () => { st.qbDe = 'partido'; st.hoja = 'qb'; },
   lanzover: (v) => { st.qbDe = v || 'jugada'; st.hoja = 'qb'; },
   qb: (id) => {
@@ -2775,7 +2905,7 @@ const A = {
   rgok: () => { const c = st.cuanto; ponerYardas(c ? c.yd : 0); },
   sinyd: () => { const c = st.cuanto; st.cuanto = null; st.hoja = null; trasYardas(c && porUid(c.uid)); },
   // corregir cualquier jugada tocando su renglón: no se borra nada hasta escoger qué cambia
-  fila: (i) => { st.edita = +i; st.hoja = 'corrige'; st.lanzo = null; },
+  fila: (i) => { st.edita = +i; st.hoja = 'corrige'; st.lanzo = null; st.jgDe = null; st.incDe = null; },
   cquien: (id) => { const j = st.partido.jugadas[st.edita]; st.hoja = null; corrige(j, (x) => { if (x.k === 'int') x.qb = id || null; else x.id = id || null; }); },
   ccast: (v) => { const j = st.partido.jugadas[st.edita]; st.hoja = null; corrige(j, (x) => { x.v = v; }); },
   cconv: () => { const j = st.partido.jugadas[st.edita]; abrirConv(j); },
@@ -2783,7 +2913,7 @@ const A = {
   cqp: () => { st.hoja = 'cqp'; },
   cqpya: (v) => {
     const j = st.partido.jugadas[st.edita], [k, cv] = v.split(':');
-    corrige(j, (x) => { const era = x.k; x.k = k; if (k === 'castigo') x.v = cv; if (!['td', 'pick6', 'tdr', 'pick6c'].includes(k)) { x.conv = null; x.convId = null; x.convQb = null; } if (!CON_NOMBRE.includes(k)) x.id = null; if (!conYardas(x)) x.yd = null; if (k !== 'incompleto') x.drop = false; if (!['pase', 'corrida', 'bandera'].includes(k)) x.pd = false; if (k === 'td' && era === 'corrida') x.qb = null; // la corrida que acabó en TD es TD corriendo, no de pase
+    corrige(j, (x) => { const era = x.k; x.k = k; if (k === 'castigo') x.v = cv; if (!['td', 'pick6', 'tdr', 'pick6c'].includes(k)) { x.conv = null; x.convId = null; x.convQb = null; } if (!CON_NOMBRE.includes(k)) x.id = null; if (!conYardas(x)) x.yd = null; if (k !== 'incompleto') { x.drop = false; x.mal = false; } if (!PULSERA.includes(k)) { x.jg = null; x.jgg = null; } if (!['bandera', 'tdr'].includes(k)) x.pr = null; if (!['pase', 'corrida', 'bandera'].includes(k)) x.pd = false; if (k === 'td' && era === 'corrida') x.qb = null; // la corrida que acabó en TD es TD corriendo, no de pase
     else if (['int', 'pick6c', 'pase', 'incompleto', 'td'].includes(k)) x.qb = x.qb || st.partido.qb; else x.qb = null; });
     st.hoja = ['td', 'pick6'].includes(k) ? null : CON_NOMBRE.includes(k) && !SIN_QUIEN.includes(k) && !j.id ? 'corrige' : null;
     if (['td', 'pick6', 'tdr', 'pick6c'].includes(k)) abrirConv(j);
@@ -2900,7 +3030,7 @@ let onbTras = () => {};
     { pant: 'metricas', sel: '.nav [data-v=metricas]', tit: 'Métricas', txt: 'Los números del equipo, en ataque y en defensa.' },
     { tit: 'Listo, ya lo puedes usar', txt: 'Nada de la práctica se guardó. Te regresamos a donde estabas.', boton: 'Listo' },
   ];
-  const visto = () => { try { return localStorage.getItem('belugas.visto.ver') === '1'; } catch { return true; } };
+  const visto = () => { try { return localStorage.getItem(LS + 'belugas.visto.ver') === '1'; } catch { return true; } };
   const ov = document.createElement('div'); ov.className = 'onb'; document.body.appendChild(ov);
   let tour = null, ovHtml = ''; // { i, caja: lo de antes del recorrido, para dejarlo igual }
   const lista = (sel) => [...document.querySelectorAll('#tel ' + sel)].slice(0, 1);
@@ -2927,7 +3057,7 @@ let onbTras = () => {};
   function fin() {
     if (!tour) return;
     const c = tour.caja; tour = null;
-    try { localStorage.setItem('belugas.visto.ver', '1'); } catch { /* sin guardado */ }
+    lsSet('belugas.visto.ver', '1');
     T = c.T; HOY = c.HOY; vanTodos = c.vanTodos;
     for (const k in st) if (!(k in c.st)) delete st[k]; // lo que la práctica agregó (en qué vista iba Marcar, la jugada escogida)
     Object.assign(st, c.st, { hoja: null, toast: null, cuanto: null, practicando: false }); clearTimeout(tToast);
@@ -2982,11 +3112,17 @@ let onbTras = () => {};
 // ---------- al abrir: lo guardado en el teléfono primero (sirve sin señal), luego la nube ----------
 cargaLocal(); recalcular(); if (st.partido) rehacer(st.partido); cierraViejo();
 pintar();
-sinc(filas.temp); sinc(filas.vivo); revisarVersion();
+sinc(filas.temp); sinc(filas.vivo); revisarVersion(); leeLibro();
 // pedir al navegador que no borre los datos de la app
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch { /* no hay */ }
 // abrir sin señal (solo en la dirección publicada; en la Mac no, para ver los cambios al momento)
-if (location.protocol === 'https:' && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if (!PRUEBA && location.protocol === 'https:' && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+// la de prueba: sin los partidos de antes (la temporada de ejemplo ya los trae con jugadas) y, si el aparato no tiene nada, con el plantel, los 8 partidos y el
+// libro de jugadas de pruebas/partidos.mjs; todo queda solo en este aparato
+if (PRUEBA) import('./pruebas/partidos.mjs').then((m) => { const pon = () => { if (st.practicando) return setTimeout(pon, 1000);
+  LIBRO = m.LIBRO; PASADOS.length = 0; Object.keys(ANTES).forEach((k) => { delete ANTES[k]; });
+  if (!T.plantel.length) { T.plantel = m.NOMBRES.map((n, i) => ({ id: m.IDS[i], nombre: n, n: i, ver: 1 })); T.linea = { O: [], D: [], qb: 'mau', ver: 1 }; T.juegos = Object.fromEntries(m.juegosNuevos.map((g) => [g.id, g])); }
+  recalcular(); pintar(); }; pon(); }).catch((e) => console.error('ejemplo', e));
 </script>
 </body>
 </html>

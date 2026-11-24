@@ -337,6 +337,8 @@ th{color:var(--mut);font-weight:500;font-size:13px}
 <div id="ov"></div>
 <div id="pop"></div>
 <script>
+// en la versión de prueba (belugas-prueba, mismo dominio y mismo guardado que la app real) esta app no se abre: usaría la llave y los datos de verdad
+if (/^\/belugas-prueba(\/|$)/.test(location.pathname)) { location.replace('./'); throw new Error('versión de prueba: aquí no se abre la app de antes'); }
 const KEY = 'tochito.v4';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

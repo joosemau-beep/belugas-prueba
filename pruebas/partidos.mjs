@@ -65,13 +65,26 @@ export const juegos = CAL.map(([rival, y, m, dd, nos, ellos, qbx], i) => { const
   const van = [...usados, ...resto.slice(0, Math.max(0, ent(10, 12) - usados.size))];
   return { id: 'g' + i, inicio: t0, dia: t0, rival, van, qb: 'mau', jugadas: crudas.map((j, k) => ({ uid: `u${i}-${k}`, t: t0 + k * 60000, ver: 1, por: 'x', id: null, ...j })), borradas: {}, cambios: [], terminado: true, meta: [nos, ellos] }; });
 
-// siembra los 8 partidos en la app abierta (los 6 de antes ya vienen con jugadas, como en el catálogo)
-export async function sembrar(pg) {
-  await pg.evaluate(({ juegos, NOMBRES, IDS }) => {
+// lo que se marca desde el 24-nov, solo en los 5 últimos partidos (los 3 primeros quedan como datos viejos, sin esos campos) y con su propia semilla, para no
+// mover ni una jugada de arriba: la jugada de la pulsera (3 de cada 4 jugadas de ataque), el mal pase (casi la mitad de los incompletos que nadie soltó),
+// «pase o corrida» en 8 de cada 10 banderas y TD del rival, y el MVP votado. El libro es el de fábrica de la app de antes (ipad.html), en sus tres grupos
+export const LIBRO = [['Rápidas', ['Pantalla rápida', 'Cruce corto', 'Diagonales rápidas', 'Regresos cortos']], ['De avance', ['Pantalla izquierda', 'Pase normal 1', 'Pase normal 2', 'Corto y largo', 'Poste de Z']], ['Engaños', ['Z cierra', 'Falso QB', 'Z silencioso', 'Corre y lanza']]];
+let s2 = 71; const R2 = () => { s2 = (s2 + 0x6d2b79f5) | 0; let t = Math.imul(s2 ^ (s2 >>> 15), 1 | s2); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const MVP = { 3: 'nicolas', 4: 'jose', 6: 'iker' };
+export const juegosNuevos = juegos.map((g, i) => (i < 3 ? g : { ...g, ...(MVP[i] ? { mvp: MVP[i], mvpVer: 1 } : {}), jugadas: g.jugadas.map((j) => { const x = { ...j };
+  if (j.lado === 'O' && ['pase', 'corrida', 'incompleto', 'int', 'td'].includes(j.k) && R2() < .75) { const [gr, l] = LIBRO[Math.floor(R2() * LIBRO.length)]; x.jg = l[Math.floor(R2() * l.length)]; x.jgg = gr; }
+  if (j.k === 'incompleto' && !j.drop && R2() < .45) x.mal = true;
+  if (['bandera', 'tdr'].includes(j.k) && R2() < .8) x.pr = R2() < .6 ? 'pase' : 'corrida';
+  return x; }) }));
+
+// siembra los 8 partidos en la app abierta (los 6 de antes ya vienen con jugadas, como en el catálogo); con nuevos, la temporada con lo del 24-nov y su libro
+export async function sembrar(pg, nuevos = false) {
+  await pg.evaluate(({ juegos, NOMBRES, IDS, LIBRO: libro }) => {
     T.plantel = NOMBRES.map((n, i) => ({ id: IDS[i], nombre: n, n: i, ver: 1 }));
     T.linea.qb = 'mau';
     PASADOS.length = 0; Object.keys(ANTES).forEach((k) => { delete ANTES[k]; });
     T.juegos = Object.fromEntries(juegos.map((g) => [g.id, g]));
+    if (libro) LIBRO = libro;
     recalcular(); pintar();
-  }, { juegos, NOMBRES, IDS });
+  }, { juegos: nuevos ? juegosNuevos : juegos, NOMBRES, IDS, LIBRO: nuevos ? LIBRO : null });
 }
