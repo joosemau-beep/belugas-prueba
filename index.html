@@ -2352,7 +2352,7 @@ function rehacer0(p) {
     // la misma jugada desde los dos celulares casi a la vez (menos de 10 s): se avisa en su renglón
     const igual = j.unica ? null : p.jugadas.slice(0, i).find((y) => y.por !== j.por && y.k === j.k && (y.id || null) === (j.id || null) && y.v === j.v && y.lado === j.lado && j.t - y.t < 10000);
     j.repe = igual ? igual.uid : null;
-    if (medio) { const l = (primer || lado) === 'O' ? 'D' : 'O'; j.txt = `Medio tiempo · balón de ${l === 'O' ? 'Belugas' : R(HOY).corto}`; j.alt = [j.txt, 'Medio tiempo']; j.marc = `${nos}–${ellos}`; serie(l); return; }
+    if (medio) { const l = (primer || lado) === 'O' ? 'D' : 'O'; j.txt = `Medio tiempo · balón de ${l === 'O' ? 'Belugas' : R(HOY).corto}`; j.alt = [`Medio tiempo · ${l === 'O' ? 'atacamos' : 'defendemos'}`, 'Medio tiempo']; j.marc = `${nos}–${ellos}`; serie(l); return; }
     primer = primer || lado;
     const f = efecto(j); nos += f.nos || 0; ellos += f.ellos || 0;
     // dónde va el balón (el nuestro en ataque, el de ellos en defensa); si se saltaron las yardas ya no se sabe, y en defensa tampoco tras una bandera o un sack
