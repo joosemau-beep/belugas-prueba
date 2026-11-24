@@ -242,7 +242,7 @@ input.nombre { flex: 1; min-width: 0; height: 44px; border: 1.5px solid rgba(11,
 input.nombre:focus { border-color: var(--acento); }
 .pj.actual, .op.actual { box-shadow: inset 0 0 0 2.5px var(--acento); }
 .mbar .qbchip { margin: 0; height: 38px; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* «¿Cuánto avanzó?»: la regla que escogió Iker en el editor; sin velo, las tiras de arriba siguen tocables */
+/* «¿Cuánto avanzó?»: la cancha para medir (Mau, 24-nov), el renglón «− número +» y la barrita de deslizar */
 .hoja.cuanto { padding: 14px 16px calc(22px + var(--abajo)); }
 .mscore .down .op1 { font: italic 900 24px/1 var(--disp); }
 .rg-pmf { display: grid; grid-template-columns: 70px minmax(0, 1fr) 70px; align-items: center; gap: 8px; margin-top: 2px; }
@@ -254,18 +254,18 @@ input.nombre:focus { border-color: var(--acento); }
 .rg-v.tic { animation: rgTic .18s ease-out; }
 .rg-anuncio { position: absolute; z-index: 5; left: 50%; bottom: -24px; transform: translate(-50%, 0); background: #f6c90e; color: #3a2c00; font: 900 12px/1 Inter; padding: 6px 10px; border-radius: 999px; white-space: nowrap; opacity: 0; transition: opacity .15s, transform .2s; pointer-events: none; }
 .rg-anuncio.ver { opacity: 1; transform: translate(-50%, 2px); }
-.rg-env { position: relative; height: 84px; margin-top: 10px; }
-.rg-th { position: relative; height: 84px; overflow-x: scroll; scrollbar-width: none; scroll-snap-type: x mandatory; -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent); touch-action: pan-x; cursor: grab; }
-.rg-th::-webkit-scrollbar { display: none; }
-.rg-p { position: relative; height: 100%; }
-.rg-mm { position: absolute; top: 0; bottom: 0; }
-.rg-s { position: absolute; top: 0; height: 100%; width: 1px; scroll-snap-align: center; }
-.rg-m { position: absolute; border-radius: 3px; background: rgba(11,27,51,.28); }
-.rg-n { position: absolute; transform: translateX(-50%); color: var(--mut); font: 700 12px/1 Inter; }
-.rg-z { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-.rg-pm { position: absolute; width: 3px; margin-left: -1.5px; background: #f6c90e; border-radius: 2px; box-shadow: 0 0 6px rgba(246,201,14,.6); }
-.rg-ag { position: absolute; left: 50%; top: 0; width: 5px; margin-left: -2.5px; border-radius: 3px; background: var(--navy); pointer-events: none; z-index: 3; }
-.rg-ag.rebote, .rg-v.rebote { animation: rgRebote .3s cubic-bezier(.3,1.7,.5,1); }
+.rg-v.rebote { animation: rgRebote .3s cubic-bezier(.3,1.7,.5,1); }
+/* la cancha entera acostada: se toca o se arrastra dónde acabó la jugada; los números van fuera, abajo, alineados con sus rayas */
+.cancha { height: 214px; border-radius: 22px; overflow: hidden; background: linear-gradient(180deg, #0f2a54, #0b1f40); box-shadow: 0 8px 20px rgba(11,27,51,.22); touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.cancha svg, .cancha-n svg, .desliza svg { display: block; pointer-events: none; }
+.cancha-n { height: 22px; margin-top: 8px; }
+.cancha-n text { font: italic 900 20px var(--disp); fill: var(--ink); text-anchor: middle; }
+/* la barrita, donde queda el pulgar: mueve la misma raya de la cancha */
+.desliza { height: 60px; margin-top: 22px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.desliza svg { overflow: visible; }
+/* teléfonos bajitos (320 × 568): la cancha más baja para que la hoja quepa sin recorrerla */
+@media (max-height: 600px) { .cancha { height: 170px; } }
+@media (max-width: 340px) { .cancha-n text { font-size: 17px; } } /* en 320 los números de 20 px casi se tocan */
 @keyframes rgTic { 0% { transform: scale(1.08); } 100% { transform: scale(1); } }
 @keyframes rgRebote { 0% { transform: scale(1); } 35% { transform: scale(1.18); } 100% { transform: scale(1); } }
 /* Equipo al final de un partido: franja de 3 y «Ver todos los números» (la limpieza, aprobada por Iker) */
@@ -651,15 +651,12 @@ html.app .pant > .pregunta.aviso { top: calc(env(safe-area-inset-top) + 68px); }
 .hb svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
 .hoja .pjs .pj { min-height: 118px; font-size: 15px; } .hoja .pjs .pj .foto { width: 58px; height: 58px; }
 .hoja .pjs.chicos .pj { min-height: 104px; }
-/* ¿Cuánto avanzó? como la V2 que escogió Iker (17-nov, data/belugas-yardas): + y − grandes y saltos en vez de la regla */
-.hoja.cuanto .rg-pmf { grid-template-columns: 80px minmax(0, 1fr) 80px; margin-top: 16px; }
+/* ¿Cuánto avanzó?: + y − grandes (la V2 de Iker, 17-nov) */
+.hoja.cuanto .rg-pmf { grid-template-columns: 80px minmax(0, 1fr) 80px; margin-top: 12px; }
 .hoja.cuanto .rg-b { width: 80px; height: 84px; }
 .hoja.cuanto .rg-v { font-size: 76px; line-height: 76px; }
 .hoja.cuanto .rg-anuncio { bottom: -12px; }
-.rg-saltos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 28px 0 8px; }
-.rg-saltos button { height: 80px; border-radius: 999px; background: transparent; box-shadow: inset 0 0 0 1px rgba(11,27,51,.18); font: italic 900 26px/1 var(--disp); color: var(--navy); }
-.hoja.cuanto .rg-b:active, .rg-saltos button:active { transform: scale(.97); }
-.rg-saltos button small { font: 800 13px/1 Inter; font-style: normal; margin-left: 2px; color: var(--mut); }
+.hoja.cuanto .rg-b:active { transform: scale(.97); }
 /* las tarjetas de partido van sin balón (Iker, 18-nov): el marcador centrado */
 .heroe .vs .eq { text-align: center; }
 /* Inicio cabe en una pantalla (Iker, 17-nov): la tarjeta del partido, el podio y los renglones de Líderes un poco más chicos */
@@ -2304,6 +2301,7 @@ function rehacer0(p) {
   p.jugadas.forEach((j, i) => {
     while (e < ev.length && ev[e].t <= j.t) serie(ev[e++].lado);
     if (j.lado !== lado) serie(j.lado);
+    if (!sabe && j.ini != null) { spot = j.ini; sabe = true; } // se había perdido el balón y en esta jugada lo pusieron en la cancha
     j.antes = { nos, ellos, down, lado, spot, primera, sabe };
     j.down = `${down}ª`; j.tipo = ICO_DE[j.k] || j.k; j.ns = ns; usada = true;
     // la misma jugada desde los dos celulares casi a la vez (menos de 10 s): se avisa en su renglón
@@ -2330,7 +2328,7 @@ function rehacer0(p) {
 // sin downs ni 1ª y 10: solo quién trae el balón
 const oportunidad = (p) => (p.lado === 'O' ? 'En ataque' : 'En defensa');
 let tToast;
-// el aviso vive en el renglón de «¿Qué pasó?»; si vence con la regla abierta solo se cambia ese renglón (no se quita nada de bajo el dedo)
+// el aviso vive en el renglón de «¿Qué pasó?»; si vence con «¿Cuánto avanzó?» abierta solo se cambia ese renglón (no se quita nada de bajo el dedo)
 const AVISO_DURA = 2 / 3; // el aviso se queda un tercio menos que antes: 4 → 2.7 s, 5 → 3.3 s, 6 → 4 s (Iker, 17-nov)
 function avisar(toast, ms = 4000) { st.toast = { ...toast, nuevo: true }; clearTimeout(tToast); tToast = setTimeout(() => { const e = document.querySelector('.tel.anim .pant > .pregunta.aviso'); if (e) e.classList.add('sale'); tToast = setTimeout(quitarAviso, e ? 200 : 0); }, ms * AVISO_DURA); }
 function quitarAviso() { st.toast = null; if (st.hoja === 'cuanto') { const e = document.querySelector('#tel .pregunta'); if (e && st.partido) e.outerHTML = filaPregunta(); } else pintar(); }
@@ -2660,101 +2658,104 @@ async function revisarVersion() {
   } catch { /* sin señal: se revisa al volver */ }
 }
 
-// ---------- ¿Cuánto avanzó? + y − y saltos (la V2 de Iker, 17-nov); la regla queda escondida y hace las cuentas ----------
-// «número 100 900 cursiva barlow · yd 15 · ± 70/40 trazo 3 · barra 84 · marcas 34×4 cada 15 · números 12 ·
-//  colores marino/hielo/coral · número de color sí · quedó liso · zona bloque, logo centro, color equipo ·
-//  primera linea, anuncio pastilla · pasos 1 · inercia sí · rebote sí · vibración sí · animación sí»
-// Es opcional: la jugada ya quedó guardada al escoger quién; si nadie toca la regla en 10 s, se cierra sola y el aviso
-// dice «sin yardas · Ponerlas».
-const FMIN = -10, FMAX = 60;
-const RG = { pm: 70, sim: 40, trazo: 3, sep: 15, alto: 34, ancho: 4, barra: 84, etiquetas: 12, borde: 1, hecho: '#1d4f8f', gana: '#1d4f8f', pierde: '#b42318' }; // gana y pierde: los colores de la cifra «+8 yd», legibles al sol (revisión, 22-nov: el azul claro quedaba en 2.3:1)
-// lo visible de cada logo dentro de su PNG de 256 (sin el aire), para centrarlo en el eje de las marcas
-const CAJA = { belugas: [12, 54, 244, 204], 'only-fins': [11, 39, 244, 216], 'triple-t': [10, 45, 245, 212], bucaneros: [9, 38, 247, 218], destroyers: [9, 12, 247, 246], kickass: [12, 24, 244, 231], bulldogs: [12, 46, 244, 210], 'lobos-its': [11, 34, 245, 223], kaffies: [11, 38, 245, 218], 'ultimos-aztecas': [11, 28, 244, 228], 'los-fantasmas': [8, 49, 247, 208], panini: [12, 51, 244, 210] };
+// ---------- ¿Cuánto avanzó? la cancha para medir, + y − y la barrita (Mau, 24-nov) ----------
+// La gente no ponía bien las yardas porque no sabe cuánto es una yarda: en la cancha se toca dónde acabó la jugada y la app cuenta.
+// Es opcional: la jugada ya quedó guardada al escoger quién; la hoja solo se cierra con ✓ o ✕ (sin yardas el aviso dice «Ponerlas»).
+const RG = { trazo: 3, gana: '#1d4f8f', pierde: '#b42318' }; // gana y pierde: los colores de la cifra «+8 yd», legibles al sol (revisión, 22-nov: el azul claro quedaba en 2.3:1)
 const signo = (mas) => { const L = 20, t = RG.trazo, m = L / 2, e = t / 2; return `<svg width="${L}" height="${L}" viewBox="0 0 ${L} ${L}" aria-hidden="true"><path d="M${e} ${m}H${L - e}${mas ? `M${m} ${e}V${L - e}` : ''}" stroke="currentColor" stroke-width="${t}" stroke-linecap="round" fill="none"/></svg>`; };
-// zona de anotación: bloque con borde fino del color del equipo y el logo centrado en la yarda 5 y en el eje de las marcas
-function zonaRegla(X, base, izq, id, color) {
-  const s = RG.sep, w = RG.ancho, H = RG.alto, top = base - H, a = izq ? -9 : CAMPO + 1, b = izq ? -1 : CAMPO + 9, k0 = (a + b) / 2, bd = RG.borde;
-  const [x0, y0, x1, y1] = CAJA[id] || [0, 0, 256, 256], bw = x1 - x0, bh = y1 - y0, BW = 4 * s + w - 8, BH = H - 8, par = (v) => 2 * Math.floor(v / 2 + 1e-6);
-  const k = Math.min(BW / bw, BH / bh, Math.sqrt((0.8 * BH * Math.min(BW, 1.6 * BH)) / (bw * bh))), W = par(bw * k), Hh = par(bh * k);
-  return `<rect x="${X(a) - w / 2 + bd / 2}" y="${top + bd / 2}" width="${X(b) - X(a) + w - bd}" height="${H - bd}" rx="3" fill="${color}" fill-opacity=".12" stroke="${color}" stroke-width="${bd}"/>`
-    + `<svg x="${X(k0) - W / 2}" y="${top + H / 2 - Hh / 2}" width="${W}" height="${Hh}" viewBox="${x0} ${y0} ${bw} ${bh}" overflow="visible"><image href="archivos/equipos/${id}-256.png" width="256" height="256"/></svg>`;
-}
-function regla(c) {
-  const s = RG.sep, w = RG.ancho, H = RG.alto, ancho = (FMAX - FMIN) * s, mitad = `((100% - ${ancho}px) / 2)`, X = (f) => (f - FMIN) * s, base = RG.barra - (RG.etiquetas + 10);
-  let m = '', sn = '';
-  if (c.sabe) m += `<svg class="rg-z" width="${ancho}" height="${RG.barra}">${zonaRegla(X, base, true, 'belugas', '#102132')}${esRival(HOY) ? zonaRegla(X, base, false, HOY, R(HOY).color) : ''}</svg>`;
-  if (c.sabe && !c.primera) m += `<i class="rg-pm" style="left:${X(PRIMERA)}px;top:2px;height:${base - 2}px"></i>`;
-  for (let f = 0; f <= CAMPO; f++) {
-    const l = f % 5 ? Math.round(H * 0.55) : H;
-    m += `<i class="rg-m" data-f="${f}" style="left:${X(f) - w / 2}px;width:${w}px;top:${base - l}px;height:${l}px"></i>`;
-    if (c.sabe && (f % 10 === 0 || f === PRIMERA) && f > 0 && f < CAMPO) m += `<span class="rg-n" style="left:${X(f)}px;top:${base + 4}px">${f <= PRIMERA ? f : CAMPO - f}</span>`;
-  }
-  for (let f = FMIN; f <= FMAX; f++) sn += `<div class="rg-s" style="left:calc(${mitad} + ${X(f)}px)"></div>`;
-  return `<div class="rg-env"><div class="rg-th" id="rgth"><div class="rg-p" style="width:calc(100% + ${ancho}px)"><div class="rg-mm" style="left:calc(${mitad});width:${ancho}px">${m}</div>${sn}</div></div><div class="rg-ag" style="height:${base + 4}px"></div></div>`;
-}
-// el balón antes de la jugada: si no se sabe (se saltaron yardas), la regla mide solo cuánto, sin cancha
-const antesDe = (j) => (j.k === 'td' ? { ...j.antes, spot: 0, primera: true, sabe: false } : j.antes.sabe ? j.antes : { ...j.antes, spot: 25, primera: true });
 function hojaCuanto() {
   const c = st.cuanto, j = porUid(c.uid); if (!j) return '';
-  const a = antesDe(j);
-  return `<div class="hoja cuanto">${barra('<h3>¿Cuánto avanzó?</h3>', 'sinyd', 'rgok', 'Guardar las yardas')}
+  return `<div class="hoja cuanto">${barra('<h3 id="rgtit">¿Cuánto avanzó?</h3>', 'sinyd', 'rgok', 'Guardar las yardas')}
+    <div class="cancha" id="cancha"></div><div class="cancha-n" id="canchan"></div>
     <div class="rg-pmf"><button class="rg-b" data-pm="-1" aria-label="Menos">${signo(false)}</button><div class="rg-vw"><span class="rg-anuncio" id="rganuncio"></span><span class="rg-v num" id="rgv">${fmtYd(c.yd)}<small>yd</small></span></div><button class="rg-b" data-pm="1" aria-label="Más">${signo(true)}</button></div>
-    <div class="rg-saltos">${[5, 10, 20, 30].map((v) => (j.k === 'sackr' ? -v : v)).map((v) => `<button data-salto="${v}">${v}<small>yd</small></button>`).join('')}</div>
-    <div hidden>${regla(a)}</div></div>`; // la regla sigue escondida: así los topes, los colores y el «¡Touchdown!» funcionan igual
+    <div class="desliza" id="desliza"></div></div>`; // la cancha y la barrita las dibuja montarCuanto, a la medida del teléfono
 }
 function abrirCuanto(j) { if (st.yds !== 'si') return; st.cuanto = { uid: j.uid, yd: j.yd || 0 }; st.hoja = 'cuanto'; }
 function ponerYardas(yd) {
   const c = st.cuanto; st.cuanto = null; st.hoja = null;
   const j = c && porUid(c.uid); if (!j) return;
-  const a = j.antes;
+  // no se sabía dónde iba el balón y lo pusieron en la cancha: se guarda (ini) y desde ahí rehacer0 vuelve a llevar la cuenta
+  const ini = !j.antes.sabe && c.ini != null ? c.ini : null, a = ini == null ? j.antes : { sabe: true, spot: ini };
   // si llegó a la zona, fue touchdown: la jugada pasa a TD y sigue la conversión
-  if (j.lado === 'O' && a.sabe && a.spot + yd >= CAMPO && !['sackr', 'td'].includes(j.k)) { corrige(j, (x) => { const corrio = x.k === 'corrida'; x.k = 'td'; if (corrio) x.qb = null; x.yd = yd; }, 'Touchdown'); st.flash = { td: true, nos: true }; abrirConv(j); return; }
-  corrige(j, (x) => { x.yd = yd; }, 'Guardado');
+  if (j.lado === 'O' && a.sabe && a.spot + yd >= CAMPO && !['sackr', 'td'].includes(j.k)) { corrige(j, (x) => { const corrio = x.k === 'corrida'; x.k = 'td'; if (corrio) x.qb = null; x.yd = yd; if (ini != null) x.ini = ini; }, 'Touchdown'); st.flash = { td: true, nos: true }; abrirConv(j); return; }
+  corrige(j, (x) => { x.yd = yd; if (ini != null) x.ini = ini; }, 'Guardado');
   trasYardas(j);
 }
-// la regla de un TD recién marcado se cerró (con o sin yardas): sigue su conversión
+// la hoja de un TD recién marcado se cerró (con o sin yardas): sigue su conversión
 function trasYardas(j) { if (j && st.convLuego === j.uid) { st.convLuego = null; abrirConv(j); } }
+const BALON = 'M-17 0C-10 -12 10 -12 17 0C10 12 -10 12 -17 0Z', COSTURA = 'M-6.5 0H6.5M-4 -3V3M0 -3.4V3.4M4 -3V3';
 function montarCuanto() {
-  const th = $('#rgth'); if (!th || !st.cuanto) return;
-  const c = st.cuanto, j = porUid(c.uid), a = antesDe(j), s = RG.sep, lo = j.k === 'td' ? 1 : a === j.antes ? Math.max(-12, -a.spot) : -20, hi = j.k === 'td' ? CAMPO : j.k === 'sackr' ? 0 : a === j.antes ? CAMPO - a.spot - (j.lado === 'D' ? 1 : 0) : 35;
-  // en defensa la regla va volteada: ellos avanzan hacia nuestra zona (a la izquierda) desde su balón
-  const inv = j.lado === 'D', enRegla = (f) => (inv ? CAMPO - f : f);
-  let armado = false;
-  const centrar = (y, suave) => { armado = false; th.scrollTo({ left: (enRegla(a.spot + y) - FMIN) * s, behavior: suave ? 'smooth' : 'auto' }); };
-  const colorear = (y) => { const f = a.spot + y; document.querySelectorAll('.rg-m').forEach((b) => { const x = enRegla(+b.dataset.f); let k = ''; if (j.antes.sabe && x >= 5 && x <= Math.min(a.spot, f)) k = RG.hecho; if (y > 0 && x > a.spot && x <= f) k = RG.gana; if (y < 0 && x > f && x <= a.spot) k = RG.pierde; b.style.background = k; }); };
+  const cv = $('#cancha'), ds = $('#desliza'); if (!cv || !ds || !st.cuanto) return;
+  const c = st.cuanto, j = porUid(c.uid), td = j.k === 'td', inv = j.lado === 'D', NAR = '#ff9440', AC = '#5aaeff';
+  // en defensa la cancha va volteada: ellos avanzan hacia nuestra zona (a la izquierda) desde su balón
+  const enCancha = (f) => (inv ? CAMPO - f : f);
+  // dónde iba el balón: el que lleva la cuenta o, si se perdió (se saltaron yardas), el que pongan con el primer toque en la cancha (c.ini).
+  // Mientras no se sepa, la cancha sale sin balón ni franja y − + y la barrita miden solo cuánto (de −20 a +30, desde la 20).
+  // En un TD nuestro se sabe dónde acabó (la zona): lo que se mueve es dónde empezó.
+  let sabe, spot, lo, hi;
+  const ubica = () => {
+    sabe = td || j.antes.sabe || c.ini != null; spot = j.antes.sabe ? j.antes.spot : c.ini != null ? c.ini : 20;
+    lo = td ? 1 : sabe ? Math.max(-12, -spot) : -20; hi = td ? CAMPO : j.k === 'sackr' ? 0 : sabe ? CAMPO - spot - (inv ? 1 : 0) : 30;
+    const t = $('#rgtit'); if (t) t.textContent = sabe ? '¿Cuánto avanzó?' : '¿Dónde iba el balón?';
+  };
+  const iniDe = (y) => (td ? CAMPO - y : spot), finDe = (y) => (td ? CAMPO : spot + y);
+  // la cancha: zonas de TD de 40 px con los logos, 50 yardas en medio; todo a la medida de la tarjeta
+  const W = cv.clientWidth, H = cv.clientHeight, z = 40, X = (f) => z + enCancha(f) * (W - 2 * z) / CAMPO, m = H / 2;
+  let s = '';
+  [[0, 'belugas'], [W - z, esRival(HOY) ? HOY : '']].forEach(([x, id]) => { s += `<rect x="${x}" y="0" width="${z}" height="${H}" fill="#fff" fill-opacity=".08"/>${id ? `<image href="archivos/equipos/${id}-256.png" x="${x + z / 2 - 17}" y="${m - 17}" width="34" height="34"/>` : ''}`; });
+  [0, 45].forEach((f) => { s += `<rect x="${z + f * (W - 2 * z) / CAMPO}" y="0" width="${5 * (W - 2 * z) / CAMPO}" height="${H}" fill="${NAR}" fill-opacity=".2"/>`; }); // la zona de conos
+  for (let f = 0; f <= CAMPO; f += 5) { const x = X(f);
+    if (f === 0 || f === CAMPO) s += `<path d="M${x} 0V${H}" stroke="#fff" stroke-width="2.5"/>`;
+    else if (f === PRIMERA) s += `<path d="M${x} 0V${H}" stroke="#f6c90e" stroke-width="4"/>`;
+    else if (f === 5 || f === CAMPO - 5) s += `<path d="M${x} 0V${H}" stroke="${NAR}" stroke-width="1.8" stroke-dasharray="4 4"/><path d="M${x - 5} 13h10l-5 -9z" fill="${NAR}"/>`;
+    else s += `<path d="M${x} 0V${H}" stroke="#fff" stroke-opacity=".2" stroke-width="1.2"/>`; }
+  cv.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${s}<g id="canchav"></g></svg>`;
+  $('#canchan').innerHTML = `<svg width="${W}" height="22" viewBox="0 0 ${W} 22">${[5, 10, 15, 20, 25, 30, 35, 40, 45].map((f) => `<text x="${X(f)}" y="18">${f <= PRIMERA ? f : CAMPO - f}</text>`).join('')}</svg>`;
+  // la barrita: el mismo campo a lo ancho, con aire para la perilla
+  const X2 = (f) => 24 + enCancha(f) * (W - 48) / CAMPO;
+  const dibuja = () => {
+    const y = c.yd, col = y < 0 ? RG.pierde : RG.gana, xi = X(iniDe(y)), xf = X(finDe(y)), xm = td ? xi : xf; // xm: lo que se mueve
+    $('#canchav').innerHTML = !sabe ? '' : `<rect x="${Math.min(xi, xf)}" y="0" width="${Math.abs(xf - xi)}" height="${H}" fill="${y < 0 ? RG.pierde : AC}" fill-opacity="${y < 0 ? .5 : .3}"/><path d="M${xi} 0V${H}" stroke="#fff" stroke-width="1.6"/>`
+      + `<path d="M${xf} 0V${H}" stroke="${AC}" stroke-width="3.5"/><circle cx="${xf}" cy="10" r="5.5" fill="${AC}"/>`
+      + `<g transform="translate(${xi} ${m}) rotate(-28)"><path d="${BALON}" fill="#0c2247" stroke="${AC}" stroke-width="2.4" stroke-linejoin="round"/><path d="${COSTURA}" stroke="${AC}" stroke-width="1.8" stroke-linecap="round"/></g>`;
+    const a = X2(iniDe(y)), f = X2(finDe(y)), p = td ? a : f, q = td ? f : a; // p: la perilla (lo que se mueve); q: el puntito
+    ds.innerHTML = `<svg width="${W}" height="60" viewBox="0 0 ${W} 60"><rect x="24" y="26" width="${W - 48}" height="8" rx="4" fill="rgba(11,27,51,.13)"/><rect x="${Math.min(a, f)}" y="26" width="${Math.abs(f - a)}" height="8" rx="4" fill="${col}"/><circle cx="${q}" cy="30" r="5" fill="#fff" stroke="${col}" stroke-width="2.5"/>`
+      + `<circle cx="${p}" cy="32" r="24" fill="rgba(11,27,51,.16)"/><circle cx="${p}" cy="30" r="24" fill="#fff" stroke="${RG.gana}" stroke-width="3"/><path d="M${p - 6} 21V39M${p} 21V39M${p + 6} 21V39" stroke="${RG.gana}" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+  };
   const poner = (y) => {
     y = Math.max(lo, Math.min(hi, Math.round(y))); if (y === c.yd) return;
     const antes = c.yd; c.yd = y;
     const v = $('#rgv'); if (v) { v.innerHTML = `${fmtYd(y)}<small>yd</small>`; v.style.color = y > 0 ? RG.gana : y < 0 ? RG.pierde : ''; v.classList.remove('tic'); void v.offsetWidth; v.classList.add('tic'); }
-    colorear(y);
+    dibuja();
     if (navigator.vibrate) navigator.vibrate(6);
     // al llegar a la zona: pastilla, rebote y vibración
-    const meta = j.antes.sabe && !inv ? CAMPO : null, dentro = meta != null && a.spot + y >= meta, cruza = dentro && a.spot + antes < meta;
+    const meta = sabe && !td && !inv ? CAMPO : null, dentro = meta != null && spot + y >= meta, cruza = dentro && spot + antes < meta;
     const an = $('#rganuncio'); if (an) { an.textContent = '¡Touchdown!'; an.classList.toggle('ver', dentro); }
-    if (cruza) { ['#rgv', '.rg-ag'].forEach((q) => { const e = $(q); if (e) { e.classList.remove('rebote'); void e.offsetWidth; e.classList.add('rebote'); } }); if (navigator.vibrate) navigator.vibrate([25, 40, 25]); }
+    if (cruza) { const e = $('#rgv'); if (e) { e.classList.remove('rebote'); void e.offsetWidth; e.classList.add('rebote'); } if (navigator.vibrate) navigator.vibrate([25, 40, 25]); }
   };
-  centrar(c.yd); colorear(c.yd);
-  const leer = () => enRegla(Math.round(th.scrollLeft / s) + FMIN) - a.spot;
-  ['pointerdown', 'touchstart', 'wheel'].forEach((t) => th.addEventListener(t, () => { armado = true; }, { passive: true }));
-  th.addEventListener('scroll', () => { if (armado) poner(leer()); }, { passive: true });
-  // con el ratón se arrastra (en el teléfono es el desplazamiento nativo, con inercia)
-  th.addEventListener('pointerdown', (e) => {
-    if (e.pointerType !== 'mouse') return;
-    const s0 = th.scrollLeft, x0 = e.clientX; try { th.setPointerCapture(e.pointerId); } catch { /* sin captura */ }
-    const mover = (ev) => { th.scrollLeft = s0 - (ev.clientX - x0); };
-    const soltar = () => { th.removeEventListener('pointermove', mover); th.removeEventListener('pointerup', soltar); };
-    th.addEventListener('pointermove', mover); th.addEventListener('pointerup', soltar);
-  });
+  ubica(); dibuja();
+  // tocar o arrastrar: la yarda de la cancha bajo el dedo (x0: dónde empieza el campo; ancho: lo que miden las 50 yardas)
+  const dedo = (el, x0, ancho, hacer) => {
+    const yarda = (e) => enCancha(Math.round((e.clientX - el.getBoundingClientRect().left - x0) / ancho * CAMPO));
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch { /* sin captura */ }
+      hacer(yarda(e), true);
+      const mover = (ev) => hacer(yarda(ev)), soltar = () => { el.removeEventListener('pointermove', mover); ['pointerup', 'pointercancel'].forEach((t) => el.removeEventListener(t, soltar)); };
+      el.addEventListener('pointermove', mover); ['pointerup', 'pointercancel'].forEach((t) => el.addEventListener(t, soltar));
+    });
+  };
+  const medir = (f) => poner(td ? CAMPO - f : f - spot);
+  // en la cancha, si no se sabía dónde iba el balón, el primer toque lo pone ahí; lo que siga (arrastrar u otro toque) ya mide
+  dedo(cv, z, W - 2 * z, (f, primero) => { if (!sabe && primero) { c.ini = Math.max(1, Math.min(CAMPO - 1, f)); ubica(); c.yd = Math.max(lo, Math.min(hi, c.yd)); $('#rgv').innerHTML = `${fmtYd(c.yd)}<small>yd</small>`; dibuja(); if (navigator.vibrate) navigator.vibrate(6); } else if (sabe) medir(f); });
+  dedo(ds, 24, W - 48, medir);
   // más y menos: un toque es una yarda; dejarlo apretado sigue sumando
   document.querySelectorAll('.rg-b').forEach((b) => {
     let t1 = null, t2 = null;
-    const uno = () => { poner(c.yd + +b.dataset.pm); centrar(c.yd, true); };
+    const uno = () => poner(c.yd + +b.dataset.pm);
     const parar = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; };
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); uno(); t1 = setTimeout(() => { t2 = setInterval(uno, 90); }, 380); });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((t) => b.addEventListener(t, () => { if (t1 || t2) parar(); }));
   });
-  // los saltos ponen ese número (no guardan): el + y el − afinan de una en una, y solo la ✓ guarda
-  document.querySelectorAll('[data-salto]').forEach((b) => b.addEventListener('click', () => { poner(+b.dataset.salto); centrar(c.yd); }));
 }
 // la conversión, en una sola hoja; si entró, en la misma hoja se escoge quién la atrapó
 function abrirConv(j) { st.conv = { uid: j.uid, paso: null }; st.lanzo = null; st.hoja = 'conv'; }
@@ -2891,7 +2892,7 @@ const A = {
   quien: (id) => {
     const s = st.sel; st.hoja = null; id = id || null;
     if (s === 'td' || s === 'pick6') { const j = guarda({ k: s, id, qb: s === 'td' && !st.corre ? lanzo() : null }); st.corre = false; st.lanzo = null;
-      // TD nuestro: primero cuántas yardas fue la jugada; al cerrar la regla sigue la conversión
+      // TD nuestro: primero cuántas yardas fue la jugada; al cerrar la hoja sigue la conversión
       if (s === 'td' && st.yds === 'si') { abrirCuanto(j); st.cuanto.yd = j.antes.sabe ? CAMPO - j.antes.spot : 10; st.convLuego = j.uid; } else abrirConv(j);
       return; }
     const j = guarda({ k: s, id, qb: ['pase', 'incompleto'].includes(s) ? lanzo() : null, ...(s === 'incompleto' && st.cayo && id ? { drop: true } : {}), ...(s === 'bandera' && st.pr ? { pr: st.pr } : {}) });
@@ -3030,7 +3031,7 @@ let onbTras = () => {};
     { pant: 'marcar', sel: '[data-a=res][data-v=pase]', tit: 'Toca «Pase completo»', txt: 'Cada jugada empieza por lo que pasó.', hecho: () => st.hoja === 'quien' },
     { sel: '.hoja [data-a=quien]', tit: '¿Quién la atrapó?', txt: 'Toca al jugador. La jugada queda guardada.', hecho: () => vivas() > 0 },
     // si las yardas llegan a la zona la jugada pasa a TD y abre la conversión: en la práctica se cierra
-    { sel: '.hoja.cuanto', tit: '¿Cuántas yardas?', txt: 'Toca 5, 10, 20 o 30 yd y afina con − y +. La ✓ las guarda; la ✕ la deja sin yardas.', hecho: () => { if (st.hoja === 'cuanto') return false; st.hoja = null; return true; } },
+    { sel: '.hoja.cuanto', tit: '¿Cuántas yardas?', txt: 'Toca en la cancha dónde acabó la jugada, o desliza la barrita; afina con − y +. La ✓ las guarda; la ✕ la deja sin yardas.', hecho: () => { if (st.hoja === 'cuanto') return false; st.hoja = null; return true; } },
     { sel: '.mk-puntos', tit: 'Lo que pasó', txt: 'Desliza a la izquierda, o toca los puntos, para ver todas las jugadas del partido.', hecho: () => st.mkVer === 'paso' },
     { sel: '.mk-pag [data-a=deshacer]', tit: 'Corregir o deshacer', txt: 'Toca una jugada para corregirla. «Deshacer» quita la última: tócalo.', hecho: () => vivas() === 0 },
     { sel: '.mk-lado', tit: 'Ataque o defensa', txt: 'Cuando cambia el balón, toca «Defensa». Los botones cambian a los de defensa.', hecho: () => st.partido.lado === 'D' },
