@@ -1401,14 +1401,22 @@ test('nos interceptaron: la cancha va hacia nuestra zona, la ✕ deja la serie e
   await toca(pg, 'rgok');
   assert.deepEqual(await estado(), ['pick6c', null, 'O', 5, 0, 6, 'conv']);
   assert.match(await texto(pg), /Conversión de KAF De 1 Buena Fallida De 2 Buena Fallida Interceptada No se intentó/);
-  await toca(pg, 'conv', 'int'); assert.match(await texto(pg), /¿Quién interceptó\?/);
+  await toca(pg, 'conv', 'int'); assert.match(await texto(pg), /¿Llegó hasta la zona\? Regresarla hasta la zona da 2 puntos a Belugas\. No Sí, \+2/);
   await toca(pg, 'cerrar'); assert.match(await texto(pg), /Interceptada No se intentó/); // la ✕ regresa a la conversión
-  await toca(pg, 'conv', 'int'); await toca(pg, 'convq', 'juancho');
-  // no da puntos, no pregunta dónde quedó (salimos de la 5) y la intercepción es de Juancho
+  await toca(pg, 'conv', 'int'); await toca(pg, 'convint', '0'); assert.match(await texto(pg), /¿Quién interceptó\?/); await toca(pg, 'convq', 'juancho');
+  // sin regresarla no da puntos; no pregunta dónde quedó (salimos de la 5) y la intercepción es de Juancho
   assert.deepEqual(await estado(), ['pick6c', null, 'O', 5, 0, 6, null]);
-  assert.deepEqual(await pg.evaluate(() => { const j = st.partido.jugadas[1], g = juegoDe(st.partido); return [j.conv, j.convId, j.txt, g.st.juancho.intn, g.st.juancho.conv ?? null]; }), // eslint-disable-line no-undef
-    [[0, 0], 'juancho', 'pick 6 de KAF, lanzada por Mau · conversión interceptada por Juancho', 1, null]);
+  const conv = () => pg.evaluate(() => { const j = st.partido.jugadas[1], g = juegoDe(st.partido), x = g.st.juancho; return [j.conv, j.convId, j.txt, j.marc, x.intn, x.td ?? null, x.conv ?? null, puntosDe(x)]; }); // eslint-disable-line no-undef
+  assert.deepEqual(await conv(), [[0, 0], 'juancho', 'pick 6 de KAF, lanzada por Mau · conversión interceptada por Juancho', '0–6', 1, null, null, 5]);
   await corregir(pg, 1); assert.match(await texto(pg), /Conversión Interceptada, por Juancho Cambiar/);
+  // y la regresó hasta la zona: 2 puntos de Belugas (Mau, 24-nov) en el marcador, en el texto y en la ficha; a Juancho le cuenta solo la intercepción
+  await toca(pg, 'cconv'); await toca(pg, 'conv', 'int'); await toca(pg, 'convint', '1'); await toca(pg, 'convq', 'juancho');
+  assert.deepEqual([await estado(), await marcador(pg)], [['pick6c', null, 'O', 5, 2, 6, null], '2–6']);
+  assert.deepEqual(await conv(), [[0, 0, 1], 'juancho', 'pick 6 de KAF, lanzada por Mau · conversión interceptada por Juancho y regresada, +2 de Belugas', '2–6', 1, null, null, 5]);
+  assert.deepEqual(await pg.evaluate(() => anotFicha({ partido: st.partido, rival: st.partido.rival }).map((a) => [a.riv, a.id, a.tit, a.como, a.cv, `${a.nos}–${a.ellos}`])), // eslint-disable-line no-undef
+    [[true, null, 'Pick 6 de Kaffies', '', '', '0–6'], [false, 'juancho', 'Regreso de Juancho', 'Punto extra', '+2', '2–6']]);
+  await corregir(pg, 1); assert.match(await texto(pg), /Conversión Interceptada, por Juancho · regresada, \+2 Cambiar/);
+  assert.deepEqual(await pg.evaluate(() => { const c = cuentas([st.partido]); return [c.rob, c.robx, c.nos, c.ellos]; }), [0, 1, 2, 6]); // eslint-disable-line no-undef
   assert.deepEqual(pg.errores, []);
   await pg.context().close();
 });
@@ -1422,9 +1430,14 @@ test('la regresamos hasta la zona: pasa a pick 6 nuestro y nuestra conversión i
   await toca(pg, 'rgok');
   const estado = () => pg.evaluate(() => { const p = st.partido, j = p.jugadas[0]; return [j.k, j.id, j.conv ?? null, p.lado, p.spot, p.nos, p.ellos, st.hoja]; }); // eslint-disable-line no-undef
   assert.deepEqual(await estado(), ['pick6', 'juancho', null, 'D', 5, 6, 0, 'conv']);
-  await toca(pg, 'conv', 'int'); // la nuestra interceptada: se guarda ya, sin preguntar quién
+  await toca(pg, 'conv', 'int'); await toca(pg, 'convint', '0'); // la nuestra interceptada y sin regresar: se guarda ya, sin preguntar quién
   assert.deepEqual(await estado(), ['pick6', 'juancho', [0, 0], 'D', 5, 6, 0, null]);
   assert.deepEqual(await pg.evaluate(() => { const g = juegoDe(st.partido); return [st.partido.jugadas[0].txt, g.convs, g.st.juancho.intn, g.st.juancho.td]; }), ['Pick 6 de Juancho · conversión interceptada', [0, 1], 1, 1]); // eslint-disable-line no-undef
+  // la regresaron hasta nuestra zona: 2 puntos de ellos, y en la ficha su renglón aparte
+  await corregir(pg, 0); await toca(pg, 'cconv'); await toca(pg, 'conv', 'int'); assert.match(await texto(pg), /Regresarla hasta la zona da 2 puntos a KAF\./); await toca(pg, 'convint', '1');
+  assert.deepEqual(await estado(), ['pick6', 'juancho', [0, 0, 1], 'D', 5, 6, 2, null]);
+  assert.deepEqual(await pg.evaluate(() => [st.partido.jugadas[0].txt, ...anotFicha({ partido: st.partido, rival: st.partido.rival }).map((a) => [a.riv, a.id, a.tit, a.cv, `${a.nos}–${a.ellos}`])]), // eslint-disable-line no-undef
+    ['Pick 6 de Juancho · conversión interceptada y regresada, +2 de KAF', [false, 'juancho', 'Pick 6 de Juancho', '', '6–0'], [true, null, 'Regreso de Kaffies', '+2', '6–2']]);
   // un pase tapado que en realidad fue intercepción: al corregirlo sigue «¿Hasta dónde llegó?»
   await toca(pg, 'res', 'tapado'); await toca(pg, 'quien', 'mau');
   await corregir(pg, 1); await toca(pg, 'cqp'); await toca(pg, 'cqpya', 'intn');
@@ -1447,6 +1460,8 @@ test('«¿Hasta dónde llegó?» y la conversión con «Interceptada» caben sin
     assert.deepEqual(await pg.evaluate(() => { const e = document.querySelector('#tel .hoja'), bs = [...e.querySelectorAll('.op')];
       return [e.scrollHeight <= e.clientHeight, e.getBoundingClientRect().bottom <= innerHeight, bs.every((b) => b.scrollWidth <= b.clientWidth), bs.map((b) => b.innerText).join('|')]; }), [true, true, true, 'Buena|Fallida|Buena|Fallida|Interceptada|No se intentó'], `${w} × ${h}`);
     await toca(pg, 'conv', 'int');
+    assert.deepEqual(await pg.evaluate(() => { const e = document.querySelector('#tel .hoja'), t = e.querySelector('h3'); return [t.innerText, t.getBoundingClientRect().height < 30, e.scrollHeight <= e.clientHeight, [...e.querySelectorAll('.op')].map((b) => b.innerText).join('|')]; }), ['¿Llegó hasta la zona?', true, true, 'No|Sí, +2'], `${w} × ${h}`);
+    await toca(pg, 'convint', '1');
     assert.deepEqual(await pg.evaluate(() => { const e = document.querySelector('#tel .hoja'); return [e.querySelector('h3').innerText, e.scrollHeight <= e.clientHeight, e.querySelectorAll('[data-a=convq]').length]; }), ['¿Quién interceptó?', true, 4], `${w} × ${h}`);
     assert.deepEqual(pg.errores, []);
     await pg.context().close();

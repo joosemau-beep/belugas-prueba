@@ -1568,7 +1568,7 @@ function cuentas(ps) {
     seriesD: 0, fren: 0, band: 0, tap: 0, rob: 0, sack: 0, saf: 0, con: {},
     // 24-nov: cómo acaban las series y sus puntos, las conversiones del rival que paramos ([paradas, intentos]), los incompletos y sus porqués, cada receptor
     // (rec), cada lanzador (qb), las yardas antes de la bandera (bd), por dónde avanza el rival (pr) y las jugadas de la pulsera (jg)
-    finO: { td: 0, int: 0, sin: 0 }, finD: { td: 0, rob: 0, par: 0 }, ptsO: 0, ptsD: 0, cvr: { 1: [0, 0], 2: [0, 0] }, inc: 0, malp: 0, rec: {}, qb: {},
+    finO: { td: 0, int: 0, sin: 0 }, finD: { td: 0, rob: 0, par: 0 }, ptsO: 0, ptsD: 0, cvr: { 1: [0, 0], 2: [0, 0] }, robx: 0, inc: 0, malp: 0, rec: {}, qb: {},
     bd: { n: 0, yd: 0, cero: 0, por: {} }, pr: { pase: { n: 0, yd: 0, ny: 0, td: 0 }, corrida: { n: 0, yd: 0, ny: 0, td: 0 } }, jg: {} };
   const de = (o, id, base) => (o[id] = o[id] || { id, ...base });
   ps.forEach((p) => {
@@ -1593,6 +1593,7 @@ function cuentas(ps) {
       if (j.k === 'int' || j.k === 'pick6c') { c.att++; c.perd++; if (qb) { const q = Q(); q.int++; q.mal++; } }
       if (j.k === 'td') c.ptsO += efecto(j).nos; if (j.k === 'tdr') c.ptsD += efecto(j).ellos;
       if ((j.k === 'tdr' || j.k === 'pick6c') && j.conv && c.cvr[j.conv[0]]) { c.cvr[j.conv[0]][1]++; if (!j.conv[1]) c.cvr[j.conv[0]][0]++; }
+      if ((j.k === 'tdr' || j.k === 'pick6c') && convInt(j)) c.robx++; // intercepciones en el punto extra de ellos: se cuentan como intercepción, no como balón robado (no acaban una serie)
       if (j.k === 'bandera' && j.yd != null) { [c.bd, j.id && de(c.bd.por, j.id, { n: 0, yd: 0, cero: 0 })].forEach((b) => { if (b) { b.n++; b.yd += j.yd; if (j.yd <= 0) b.cero++; } }); }
       if (j.k === 'bandera' && c.pr[j.pr]) { const r = c.pr[j.pr]; r.n++; if (j.yd != null) { r.yd += j.yd; r.ny++; } }
       if (j.k === 'tdr' && c.pr[j.pr]) c.pr[j.pr].td++;
@@ -1712,7 +1713,7 @@ function metricas() {
     ${det(`${c.seriesTD} de ${plural(c.seriesO, 'serie')}.${cvTxt} Pases completos ${pct(c.comp, c.att)}% (${c.comp} de ${c.att})${c.drops ? `, ${plural(c.drops, 'soltado')}` : ''}. Yardas de ataque: atrapadas más corridas.`)}</div>`;
   // Defensa: series paradas, partido a partido, y los mejores por jugadas de defensa; en «Más», los puntos que permitió (sin el pick 6 ni el safety en contra, que son del ataque)
   const mejDef = PLANTEL.map((p) => { const t = TEMP[p.id]; return { id: p.id, v: t.band + t.tap + t.sack + t.intn, band: t.band, sub: [t.band && plural(t.band, 'bandera'), t.tap && plural(t.tap, 'tapado'), t.sack && plural(t.sack, 'sack'), t.intn && `${t.intn} INT`].filter(Boolean).join(' · ') }; }).filter((x) => x.v > 0).sort((a, b) => b.v - a.v || b.band - a.band || (nom(a.id) < nom(b.id) ? -1 : 1));
-  const puntosDe2 = (ks) => con.reduce((a, g) => a + g.partido.jugadas.filter((j) => ks.includes(j.k)).reduce((b, j) => b + (efecto(j).ellos || 0), 0), 0), permitio = puntosDe2(['tdr']), regalados = puntosDe2(['pick6c', 'safetyc']);
+  const puntosDe2 = (ks) => con.reduce((a, g) => a + g.partido.jugadas.filter((j) => ks.includes(j.k)).reduce((b, j) => b + (efecto(j).ellos || 0), 0), 0), permitio = puntosDe2(['tdr']), regalados = puntosDe2(['pick6c', 'safetyc', 'td', 'pick6']); // td y pick6 nuestros: solo el punto extra que nos interceptaron y regresaron
   const defensa = `<div class="card"><div class="big"><strong class="num">${pct(c.fren, c.seriesD)}%</strong><div><b>series paradas</b></div></div>
     ${columnas(con, porG.map((x) => ({ n: pct(x.fren, x.seriesD), t: `${x.fren}/${x.seriesD}` })), con.map((g, i) => selPartido(g, `${porG[i].fren} de ${porG[i].seriesD} series paradas (${pct(porG[i].fren, porG[i].seriesD)}%)`)), { max: 100, alto: 56 })}
     ${mejDef.length ? `<h5>Los mejores · jugadas</h5>${mejores(mejDef, (v) => (v === 1 ? 'jugada' : 'jugadas'))}` : ''}
@@ -1785,7 +1786,7 @@ function metricas() {
 function loQueMarcamos(p) {
   const c = cuentas([p]);
   const col = (tit, filas) => `<div><h5>${tit}</h5>${filas.map(([k, v]) => `<div class="f"><span>${k}</span><b class="num">${v}</b></div>`).join('')}</div>`;
-  return `<h2>Estadísticas del partido</h2><div class="lqm">${col('Ataque', [['Series con TD', `${c.seriesTD} de ${c.seriesO}`], ['Pases', `${c.comp} de ${c.att}`], ['Corridas', c.corr], ['INT lanzadas', c.perd]])}${col('Defensa', [['Series paradas', `${c.fren} de ${c.seriesD}`], ['Banderas', c.band], ['Pases tapados', c.tap], ['Intercepciones', c.rob]])}</div>`;
+  return `<h2>Estadísticas del partido</h2><div class="lqm">${col('Ataque', [['Series con TD', `${c.seriesTD} de ${c.seriesO}`], ['Pases', `${c.comp} de ${c.att}`], ['Corridas', c.corr], ['INT lanzadas', c.perd]])}${col('Defensa', [['Series paradas', `${c.fren} de ${c.seriesD}`], ['Banderas', c.band], ['Pases tapados', c.tap], ['Intercepciones', c.rob + c.robx]])}</div>`;
 }
 // el renglón de abajo del TD: con aviso, dice la jugada (tocarla la corrige) y trae Deshacer u otra acción; sin aviso, «Última · Corregir · Deshacer»
 // en Marcar el aviso sale un momento al marcar (con Deshacer) y se va solo; la tira «Última» queda solo en «Lo que pasó» (Iker, 17-nov)
@@ -1882,12 +1883,17 @@ const anotDe = (g) => g.tds.map(([id, como, qb, cv], i) => { const c = g.nuevo ?
 // ficha de un partido jugado
 // las anotaciones en orden, las del rival también, con el marcador como iba quedando
 const anotFicha = (g) => { let nos = 0, ellos = 0;
-  return g.partido.jugadas.map((j) => { const e = efecto(j); if (!e.nos && !e.ellos) return null; nos += e.nos || 0; ellos += e.ellos || 0;
-    const riv = !e.nos, y = ydDe(j), que = { td: 'TD', tdr: 'TD', pick6: 'Pick 6', pick6c: 'Pick 6' }[j.k] || 'Safety';
+  return g.partido.jugadas.flatMap((j) => { const e = efecto(j); if (!e.nos && !e.ellos) return [];
+    const riv = ['tdr', 'pick6c', 'safetyc'].includes(j.k), reg = convReg(j) ? 2 : 0, y = ydDe(j), que = { td: 'TD', tdr: 'TD', pick6: 'Pick 6', pick6c: 'Pick 6' }[j.k] || 'Safety';
     // la regla de textos (22-nov): «Pase de Mau · 12 yd», «Corrida · 20 yd», el rival con su nombre corto
-    return { id: riv ? null : j.id, riv, nos, ellos, tit: `${que} de ${riv ? R(g.rival).nombre : nom(j.id)}`,
+    if (riv) ellos += e.ellos; else nos += e.nos;
+    // el punto extra interceptado y regresado hasta la zona: su renglón aparte, del lado del que la regresó
+    const mas = !reg ? [] : [{ id: riv ? j.convId : null, riv: !riv, nos: riv ? nos + reg : nos, ellos: riv ? ellos : ellos + reg, tit: `Regreso de ${riv ? nom(j.convId) : R(g.rival).nombre}`, como: 'Punto extra', cv: '+2' }];
+    const fila = { id: riv ? null : j.id, riv, nos, ellos, tit: `${que} de ${riv ? R(g.rival).nombre : nom(j.id)}`,
       como: j.k !== 'td' ? '' : `${j.qb ? `Pase de ${nom(j.qb)}` : 'Corrida'}${y > 0 ? ` · ${y} yd` : ''}`,
-      cv: j.conv && j.conv[1] ? `+${j.conv[0]}${!riv && j.convId ? ` de ${nom(j.convId)}` : ''}` : '' }; }).filter(Boolean); };
+      cv: j.conv && j.conv[1] ? `+${j.conv[0]}${!riv && j.convId ? ` de ${nom(j.convId)}` : ''}` : '' };
+    if (riv) nos += reg; else ellos += reg;
+    return [fila, ...mas]; }); };
 const anotaciones = (g) => { const r = R(g.rival), l = anotFicha(g), txt = (a) => `<div><b>${a.tit}</b>${a.como ? `<small>${a.como}</small>` : ''}${a.cv ? `<small class="cv">${a.cv}</small>` : ''}</div>`;
   return l.length ? `<div class="card an2">${l.map((a) => `<div class="r${a.riv ? ' riv' : ''}">${a.riv ? '<span></span>' : `<button class="l n" data-a="jugp" data-v="${a.id}">${foto(P(a.id))}${txt(a)}</button>`}<span class="mc num">${a.riv ? `<i>${a.nos}</i>–${a.ellos}` : `${a.nos}–<i>${a.ellos}</i>`}</span>${a.riv ? `<div class="l">${rlogo(r)}${txt(a)}</div>` : ''}</div>`).join('')}</div>` : '<div class="card"><div class="pp">Sin anotaciones</div></div>'; };
 // un jugador en un partido: su tarjeta con sus puntos, su lugar entre los que vinieron y su promedio; la tira, lo suyo según su rol (22-nov);
@@ -2117,7 +2123,7 @@ function hoja() {
         ${j.lado === 'D' && ['bandera', 'tdr'].includes(j.k) ? `<h4 class="sub">¿Fue pase o corrida?</h4>${prBotones(j)}` : ''}
         ${conYardas(j) ? `<button class="campo" data-a="cyd" style="margin-top:12px"><div><span class="l">Yardas</span><b>${j.yd == null ? 'Sin yardas' : fmtYd(j.yd) + ' yd'}</b></div><u>Cambiar</u></button>` : ''}
         ${['int', 'intn'].includes(j.k) ? `<button class="campo" data-a="chasta" style="margin-top:12px"><div><span class="l">Hasta dónde llegó</span><b>${j.hasta == null ? 'Sin marcar' : dondeQuedo(j)}</b></div><u>Cambiar</u></button>` : ''}
-        ${['td', 'pick6', 'tdr', 'pick6c'].includes(j.k) ? `<button class="campo" data-a="cconv" style="margin-top:12px"><div><span class="l">Conversión</span><b>${!j.conv ? 'No se intentó' : convInt(j) ? `Interceptada${['tdr', 'pick6c'].includes(j.k) && j.convId ? `, por ${nom(j.convId)}` : ''}` : `De ${j.conv[0]} · ${j.conv[1] ? 'buena' + (!['tdr', 'pick6c'].includes(j.k) ? `, atrapó ${nom(j.convId)}` : '') : 'fallida'}`}</b></div><u>Cambiar</u></button>` : ''}
+        ${['td', 'pick6', 'tdr', 'pick6c'].includes(j.k) ? `<button class="campo" data-a="cconv" style="margin-top:12px"><div><span class="l">Conversión</span><b>${!j.conv ? 'No se intentó' : convInt(j) ? `Interceptada${['tdr', 'pick6c'].includes(j.k) && j.convId ? `, por ${nom(j.convId)}` : ''}${convReg(j) ? ' · regresada, +2' : ''}` : `De ${j.conv[0]} · ${j.conv[1] ? 'buena' + (!['tdr', 'pick6c'].includes(j.k) ? `, atrapó ${nom(j.convId)}` : '') : 'fallida'}`}</b></div><u>Cambiar</u></button>` : ''}
         ${j.k === 'castigo' ? `<h4 class="sub">Castigo</h4><div class="ops dos acc"><button class="op${j.v === 'favor' ? ' prim' : ''}" data-a="ccast" data-v="favor">Al rival</button><button class="op${j.v === 'contra' ? ' prim' : ''}" data-a="ccast" data-v="contra">A Belugas</button></div>` : ''}
         ${cuantos ? `<h4 class="sub">${pregunta(j.k)}</h4>${porLados(cuantos, j.lado, (id) => botonPj(id, 'cquien', id === j.id), ' chicos')}` : ''}`;
     }
@@ -2130,7 +2136,8 @@ function hoja() {
   }
   if (st.hoja === 'conv') {
     const c = st.conv, j = c && porUid(c.uid);
-    if (j && c.paso === 'int') h = `<h3>¿Quién interceptó?</h3>${pjsRecientes('D', 'convq')}`;
+    if (j && c.paso === 'int') h = `<h3>¿Llegó hasta la zona?</h3><p>Regresarla hasta la zona da 2 puntos a ${['tdr', 'pick6c'].includes(j.k) ? 'Belugas' : r.corto}.</p><div class="ops dos"><button class="op" data-a="convint" data-v="0">No</button><button class="op prim" data-a="convint" data-v="1">Sí, +2</button></div>`;
+    else if (j && c.paso === 'intq') h = `<h3>¿Quién interceptó?</h3>${pjsRecientes('D', 'convq')}`;
     else if (j && c.paso) { const q = lanzo();
       h = `<h3>¿Quién la atrapó?</h3>${campoLanzo(q, 'conv')}${pjsRecientes(j.lado, 'convq', q)}`; }
     else if (j) h = `<h3>${['tdr', 'pick6c'].includes(j.k) ? `Conversión de ${r.corto}` : 'Conversión'}</h3>
@@ -2264,7 +2271,8 @@ const TXT = { pase: (n) => `pase a ${n}`, corrida: (n) => `corrida de ${n}`, inc
 // 1 sin quién lanzó ni «en su zona» y la conversión como «+1 de Rodrigo»; 2 además sin quién atrapó la conversión
 function textoDe(j, n = 0) {
   const c = j.conv, riv = ['tdr', 'pick6c'].includes(j.k);
-  const cv = !c ? '' : !c[0] ? (n ? (n < 2 ? ' · conv. interceptada' : ' · conv. INT') : ` · conversión interceptada${riv && j.convId ? ` por ${nom(j.convId)}` : ''}`) : n ? (c[1] ? ` · +${c[0]}${n < 2 && !riv && j.convId ? ` de ${nom(j.convId)}` : ''}` : ` · +${c[0]} fallida`) : !c[1] ? ` · conversión de ${c[0]} fallida` : riv ? ` + ${c[0]}` : ` + ${c[0]} (atrapó ${nom(j.convId)})`;
+  const reg = convReg(j) ? `+2 de ${riv ? 'Belugas' : R(HOY).corto}` : '';
+  const cv = !c ? '' : !c[0] ? (n ? (n < 2 ? (reg ? ` · conv. regresada, ${reg}` : ' · conv. interceptada') : (reg ? ' · INT +2' : ' · conv. INT')) : ` · conversión interceptada${riv && j.convId ? ` por ${nom(j.convId)}` : ''}${reg ? ` y regresada, ${reg}` : ''}`) : n ? (c[1] ? ` · +${c[0]}${n < 2 && !riv && j.convId ? ` de ${nom(j.convId)}` : ''}` : ` · +${c[0]} fallida`) : !c[1] ? ` · conversión de ${c[0]} fallida` : riv ? ` + ${c[0]}` : ` + ${c[0]} (atrapó ${nom(j.convId)})`;
   if (j.k === 'castigo') return `castigo ${j.v === 'favor' ? 'a favor' : 'en contra'}`;
   if (j.k === 'td') return `TD de ${nom(j.id)}${n ? '' : j.qb ? `, pase de ${nom(j.qb)}` : ', por corrida'}${j.yd != null ? ` · ${j.yd} yd` : ''}${cv}`;
   if (j.k === 'sackr') return `sack a ${nom(j.id)}` + (j.yd != null ? ` · ${fmtYd(j.yd)} yd` : '');
@@ -2280,15 +2288,17 @@ function textoDe(j, n = 0) {
 // 1ª y 10: ya no se marca (Iker, 17-nov: la serie se acaba con Ataque/Defensa); ya no da puntos (Mau, 19-nov), tampoco en las jugadas viejas que la traen
 // la conversión interceptada (Mau, 24-nov): conv [0, 0] = falló sin puntos y no dice si era de 1 o de 2; si era de ellos, convId es quién de nosotros la interceptó
 const convInt = (j) => !!j.conv && !j.conv[0];
+// y si la regresaron hasta la zona (conv [0, 0, 1]) son 2 puntos del equipo que la interceptó (Mau, 24-nov: «Sí, da 2»); al que la regresó solo le cuenta la intercepción
+const convReg = (j) => convInt(j) && !!j.conv[2];
 const pdDe = (j) => !!j.pd && j.lado === 'O' && ['pase', 'corrida'].includes(j.k);
 const pdEllos = (j) => !!j.pd && j.lado === 'D' && j.k === 'bandera'; // 1ª y 10 que ellos lograron (estadística del equipo, sin puntos)
 // puntos de cada jugada y si cambia de lado (pick 6: después de nuestra conversión ellos reciben, seguimos en defensa)
 function efecto(j) {
-  const c = j.conv && j.conv[1] ? j.conv[0] : 0;
-  if (j.k === 'td') return { nos: 6 + c, cambia: true };
-  if (j.k === 'pick6') return { nos: 6 + c, reinicia: true };
-  if (j.k === 'tdr') return { ellos: 6 + c, cambia: true };
-  if (j.k === 'pick6c') return { ellos: 6 + c, serie: true };
+  const c = j.conv && j.conv[1] ? j.conv[0] : 0, r = convReg(j) ? 2 : 0; // r: el punto extra interceptado y regresado, para el otro equipo
+  if (j.k === 'td') return { nos: 6 + c, ellos: r, cambia: true };
+  if (j.k === 'pick6') return { nos: 6 + c, ellos: r, reinicia: true };
+  if (j.k === 'tdr') return { ellos: 6 + c, nos: r, cambia: true };
+  if (j.k === 'pick6c') return { ellos: 6 + c, nos: r, serie: true };
   if (j.k === 'safety') return { nos: 2, cambia: true };
   if (j.k === 'safetyc') return { ellos: 2, cambia: true };
   return { cambia: j.k === 'int' || j.k === 'intn', mismoDown: j.k === 'castigo' || j.k === 'buena' };
@@ -2929,14 +2939,18 @@ const A = {
   conv: (v) => {
     const c = st.conv, j = c && porUid(c.uid); if (!j) { st.hoja = null; return; }
     if (v === '0') { st.hoja = null; corrige(j, (x) => { x.conv = null; x.convId = null; }, 'Guardado'); return; }
-    // interceptada: falló y no da puntos; si era de ellos falta quién de nosotros la interceptó (en la misma hoja). La serie siguiente sale de la 5, como siempre
-    if (v === 'int') { if (['tdr', 'pick6c'].includes(j.k)) { c.paso = 'int'; return; } st.hoja = null; corrige(j, (x) => { x.conv = [0, 0]; x.convId = null; x.convQb = null; }, 'Guardado'); return; }
+    // interceptada: falló y no da puntos a quien la intentó; en la misma hoja sigue si la regresaron hasta la zona (convint) y, si era de ellos, quién de nosotros
+    // la interceptó. No pregunta dónde quedó el balón: la serie siguiente sale de la 5, como siempre
+    if (v === 'int') { c.paso = 'int'; return; }
     const [n, entro] = v.split('-').map(Number);
     // nuestra conversión que entró: falta quién la atrapó (siempre es pase), en la misma hoja
     if (entro && !['tdr', 'pick6c'].includes(j.k)) { c.paso = n; return; }
     st.hoja = null; corrige(j, (x) => { x.conv = [n, entro]; x.convId = null; }, 'Guardado');
   },
-  convq: (id) => { const c = st.conv, j = c && porUid(c.uid); st.hoja = null; if (!j) return; const n = c.paso; corrige(j, (x) => { if (n === 'int') { x.conv = [0, 0]; x.convId = id || null; x.convQb = null; } else { x.conv = [n, 1]; x.convId = id || null; x.convQb = lanzo(); } }, 'Guardado'); st.lanzo = null; },
+  convint: (v) => { const c = st.conv, j = c && porUid(c.uid); if (!j) { st.hoja = null; return; } c.reg = v === '1';
+    if (['tdr', 'pick6c'].includes(j.k)) { c.paso = 'intq'; return; }
+    st.hoja = null; corrige(j, (x) => { x.conv = c.reg ? [0, 0, 1] : [0, 0]; x.convId = null; x.convQb = null; }, 'Guardado'); },
+  convq: (id) => { const c = st.conv, j = c && porUid(c.uid); st.hoja = null; if (!j) return; const n = c.paso; corrige(j, (x) => { if (n === 'intq') { x.conv = c.reg ? [0, 0, 1] : [0, 0]; x.convId = id || null; x.convQb = null; } else { x.conv = [n, 1]; x.convId = id || null; x.convQb = lanzo(); } }, 'Guardado'); st.lanzo = null; },
   rgok: () => { const c = st.cuanto; if (c && c.hasta) ponerHasta(c.yd); else ponerYardas(c ? c.yd : 0); },
   sinyd: () => { const c = st.cuanto; st.cuanto = null; st.hoja = null; trasYardas(c && porUid(c.uid)); },
   // corregir cualquier jugada tocando su renglón: no se borra nada hasta escoger qué cambia
