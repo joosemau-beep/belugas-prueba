@@ -1442,6 +1442,7 @@ test('la jugada de la pulsera: es lo último de la jugada, un toque con su núme
   // pase: quién, yardas y, para cerrar, la pulsera
   await toca(pg, 'res', 'pase'); assert.match(await texto(pg), /¿Quién la atrapó\?/); await toca(pg, 'quien', 'nico'); assert.equal(await hoja(), 'cuanto'); await salto(pg, 5); await toca(pg, 'rgok');
   assert.match(await texto(pg), /¿Qué jugada fue\? 1 · RÁPIDAS 11 12 13 14 2 · DE AVANCE 21 22 23 24 25 3 · ENGAÑOS 31 32 33 34 No sé/);
+  assert.equal(await pg.locator('.hoja [data-a="jg"][data-v=""]').getAttribute('class'), 'op rojo'); // «No sé» en rojo (Mau, 24-nov)
   await toca(pg, 'jg', 'Cruce corto'); assert.equal(await hoja(), null);
   await toca(pg, 'res', 'corrida'); await toca(pg, 'quien', 'nico'); await toca(pg, 'sinyd'); await toca(pg, 'jg', ''); assert.equal(await hoja(), null); // «No sé»
   await toca(pg, 'res', 'int'); assert.equal(await hoja(), 'jg'); await toca(pg, 'jg', 'Poste de Z'); // la intercepción ya quedó guardada: solo falta la pulsera
@@ -1477,6 +1478,7 @@ test('en defensa, «¿pase o corrida?» antes de «¿Quién?» en la bandera y a
   await toca(pg, 'lado', 'D');
   await toca(pg, 'res', 'bandera');
   assert.match(await texto(pg), /¿Fue pase o corrida\? Pase Corrida No sé/);
+  assert.equal(await pg.locator('.hoja [data-a="pr"][data-v=""]').getAttribute('class'), 'op rojo'); // «No sé» en rojo (Mau, 24-nov)
   await toca(pg, 'pr', 'pase'); assert.match(await texto(pg), /¿Quién quitó la bandera\?/); await toca(pg, 'quien', 'nico'); await salto(pg, 5); await toca(pg, 'rgok');
   await toca(pg, 'res', 'bandera'); await toca(pg, 'pr', ''); await toca(pg, 'quien', 'mau'); await toca(pg, 'sinyd'); // «No sé»
   await toca(pg, 'res', 'bandera'); await pg.locator('.hoja .hb.no').click(); await pg.waitForTimeout(150); // la ✕ no guarda nada

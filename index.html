@@ -2090,11 +2090,11 @@ function hoja() {
   if (st.hoja === 'inc') { const j = st.incDe === 'corrige' ? st.partido.jugadas[st.edita] : null, cur = j && incDe(j);
     h = `<div class="ops inc3">${INC.map(([v, n, a, c]) => `<button class="op${cur === v ? ' actual' : ''}" data-a="inc" data-v="${v}" style="--c:${c}">${n}<small>${a}</small></button>`).join('')}</div>`; }
   // en defensa, antes de «¿Quién?» (la 2 que escogió Mau, 24-nov): un paso aparte, con «No sé»
-  if (st.hoja === 'pr') h = '<h3>¿Fue pase o corrida?</h3><div class="ops dos"><button class="op prim" data-a="pr" data-v="pase">Pase</button><button class="op prim" data-a="pr" data-v="corrida">Corrida</button></div><div class="ops" style="margin-top:12px"><button class="op sec" data-a="pr" data-v="">No sé</button></div>';
+  if (st.hoja === 'pr') h = '<h3>¿Fue pase o corrida?</h3><div class="ops dos"><button class="op prim" data-a="pr" data-v="pase">Pase</button><button class="op prim" data-a="pr" data-v="corrida">Corrida</button></div><div class="ops" style="margin-top:12px"><button class="op rojo" data-a="pr" data-v="">No sé</button></div>';
   // la jugada de la pulsera: su número, por grupo; «No sé» sigue sin ella
   if (st.hoja === 'jg') { const cur = st.jgDe === 'corrige' ? (st.partido.jugadas[st.edita] || {}).jg : null;
     h = `${barra('<h3>¿Qué jugada fue?</h3>', 'cerrar')}${LIBRO.map(([g, l], i) => `<h4 class="sub">${i + 1} · ${esc(g)}</h4><div class="jgn">${l.map((n, k) => `<button class="op${n === cur ? ' prim' : ''}" data-a="jg" data-v="${esc(n)}" aria-label="${i + 1}${k + 1}, ${esc(n)}">${i + 1}${k + 1}</button>`).join('')}</div>`).join('')}
-      <div class="ops" style="margin-top:14px"><button class="op sec" data-a="jg" data-v="">No sé</button></div>`; }
+      <div class="ops" style="margin-top:14px"><button class="op rojo" data-a="jg" data-v="">No sé</button></div>`; }
   // el MVP que votó el equipo (fuera de la app): uno por partido, entre los que vinieron
   if (st.hoja === 'mvp') { const g = JUEGOS.find((x) => x.id === st.juego);
     if (g && g.partido) { const van = (g.partido.van || []).filter(P), ids = van.length ? van : Object.keys(g.st).filter(P), cur = g.partido.mvp;
