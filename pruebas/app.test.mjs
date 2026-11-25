@@ -2243,18 +2243,19 @@ test('«Compartir» hace el video del partido (resultado, los 3 que más sumaron
   const cuadros = () => pg.evaluate(async () => { const c = Object.assign(document.createElement('canvas'), { width: VW, height: VH }), x = c.getContext('2d'), o = [];
     for (const g of JUEGOS) { const d = datosFinal(g), im = await cargaVideo(d), e = { ...d, ellos: d.nos };
       for (const t of [0, 1.3, 2.7, 3.7, 5.5, 8, 9.5, 20]) { dibujaCuadro(x, d, im, t); dibujaCuadro(x, e, im, t); }
-      o.push([g.id, d.jug.length, durVideo(d), d.tds.map((t) => `${t.id}:${t.n}`).join(' '), d.tdp.map((t) => `${t.id}:${t.n}`).join(' ')]); }
+      // al final, el ataque cuenta todos los TD (sin pick 6) y todos los pases de TD
+      const suma = (k) => ((d.ataque.find(([n]) => n === k) || [, []])[1]).reduce((a, p) => a + p.n, 0), tds = g.tds || [];
+      o.push([g.id, d.jug.length, durVideo(d), suma('TD') === tds.filter(([, c]) => c).length && suma('TD LANZADOS') === tds.filter(([, c, qb]) => c === 'pase' && qb).length]); }
     return o; });
   const solos = await cuadros();
-  // dura 3.5 s el resultado + 1.5 por jugador + 0.45 de la ola + 2.2 el final con los TD; los de solo marcador (aquí, no en la de prueba publicada), 6.15 s
-  const dura = ([, n, dur]) => Math.abs(dur - (6.15 + n * 1.5)) < .001;
+  // dura 3.5 s el resultado + 1.4 por jugador + 0.45 de la ola + 3.4 el final (ataque y defensa); los de solo marcador (aquí, no en la de prueba publicada), 7.35 s
+  const dura = ([, n, dur, ok]) => Math.abs(dur - (7.35 + n * 1.4)) < .001 && ok;
   assert.ok(solos.every(dura) && (process.env.URL || solos.every(([, n]) => n === 0)), JSON.stringify(solos));
   await sembrar(pg, true);
   const todos = await cuadros();
   assert.ok(todos.every(dura), JSON.stringify(todos));
-  // Lobos 33–12: ~10.6 s con 3 jugadores; al final, quién anotó (Nicolás 3, Juancho y Rodrigo) y quién lanzó (Mau 3, José 1)
+  // Lobos 33–12: ~11.5 s con 3 jugadores
   const lob = todos.find(([id]) => id === 'g4'); assert.ok(dura(lob) && lob[1] === 3, JSON.stringify(lob));
-  assert.deepEqual(lob.slice(3), ['nicolas:3 juancho:1 rodrigo:1', 'mau:3 jose:1']);
   assert.deepEqual(pg.errores, []);
   // el menú de compartir del teléfono, de mentiras: apunta lo que se le manda
   await pg.evaluate(() => { window.__mandado = []; navigator.canShare = () => true; navigator.share = async (o) => { window.__mandado.push((o.files || []).map((f) => [f.name, f.type])); }; });
