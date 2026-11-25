@@ -2145,13 +2145,13 @@ function capaFoto(im, w, h, { izq = 0, der = 0, abajo = 0, radio = 0 } = {}) {
 }
 
 // ---------- las tarjetas, como las especiales de las cajas de cartas (Mau, 24-nov): el color dice la categoría, sin letreros, según los puntos de
-// fantasy del partido: plata (menos de 9), hielo (9 a 16, platino con cristales y destellos), oro (16 a 30, marco de oro con su brillo que gira) y aurora
-// (30 o más, cortinas de aurora boreal por detrás, discretas). Foto, placa con el nombre, lo que hizo y un destello que la barre ----------
-const CATEGORIA = (pts) => (pts >= 30 ? 'aurora' : pts >= 16 ? 'oro' : pts >= 9 ? 'hielo' : 'base');
+// fantasy del partido: plata (menos de 9), hielo (9 a 16, platino con cristales y destellos), oro (16 a 30, marco de oro con su brillo que gira) y la
+// especial morada (30 o más, Mau 24-nov: oscura con un aura morada que sale de toda la orilla, chispas y orilla que late). Foto, placa con el nombre, lo que hizo y un destello que la barre ----------
+const CATEGORIA = (pts) => (pts >= 30 ? 'morada' : pts >= 16 ? 'oro' : pts >= 9 ? 'hielo' : 'base');
 const CARTA = { base: { tinte: ['#ffffff', '#c6cfda', '#9fb3cc'], metal: ['#ffffff', '#dfe6ef', '#9fb3cc'], fino: '#d6e4f7', fondo: '#1f2c48' },
   hielo: { tinte: ['#ffffff', '#bfe6ff', '#8fc6e8'], metal: ['#ffffff', '#d8f1ff', '#9fc4e0'], fino: '#d8f4ff', fondo: '#1a3558' },
   oro: { tinte: ['#ffe38c', '#f6b73c', '#dd8d16'], metal: ['#fff3c4', '#f6c453', '#b8860b'], fino: '#ffd36b', fondo: '#3a2a0a' },
-  aurora: { tinte: ['#5effc8', '#3fa9ff', '#a77bff'], metal: ['#c8ffee', '#5effc8', '#3fa9ff'], fino: '#9fffe0', fondo: '#0a2236' } };
+  morada: { tinte: ['#9b6bff', '#3a1a7a', '#c9b3ff'], metal: ['#4a3a72', '#1c1236', '#0b0614'], fino: '#c9b3ff', fondo: '#140a24' } };
 // el fondo con la foto, hecho una vez por jugador, tamaño y categoría (se guarda en im)
 function fondoCarta(im, id, nom, w, h, est) {
   const k = `${id}|${w}|${est}`, c = im.cartas = im.cartas || {}; if (c[k]) return c[k];
@@ -2173,29 +2173,33 @@ function carta(x, im, p, cx, cy, w, est, t, lineas) {
     x.beginPath(); x.moveTo(0, -s); x.lineTo(s * .22, 0); x.lineTo(0, s); x.lineTo(-s * .22, 0); x.closePath(); x.moveTo(-s, 0); x.lineTo(0, s * .22); x.lineTo(s, 0); x.lineTo(0, -s * .22); x.closePath(); x.fill(); x.restore(); } };
   x.save(); x.translate(cx, cy);
   let g;
-  if (est === 'aurora') { // cortinas de aurora por detrás, discretas
-    x.save(); x.globalCompositeOperation = 'lighter'; const cols = ['94,255,200', '63,169,255', '167,123,255'];
-    for (let k = 0; k < 5; k++) { const cx0 = -w * .6 + ((k * 97 + t * 35) % (w * 1.2)), ww = w * .16 + (k % 3) * w * .07, top = -h * .62, bot = h * .05; g = x.createLinearGradient(0, top, 0, bot); g.addColorStop(0, `rgba(${cols[k % 3]},0)`); g.addColorStop(.5, `rgba(${cols[k % 3]},.2)`); g.addColorStop(1, `rgba(${cols[k % 3]},0)`);
-      x.fillStyle = g; x.beginPath(); x.moveTo(cx0, top); for (let i = 0; i <= 10; i++) x.lineTo(cx0 + Math.sin(i * .6 + t * 1.6 + k) * w * .06, top + i * (bot - top) / 10); x.lineTo(cx0 + ww, bot); for (let i = 10; i >= 0; i--) x.lineTo(cx0 + ww + Math.sin(i * .6 + t * 1.6 + k + 1.3) * w * .06, top + i * (bot - top) / 10); x.closePath(); x.fill(); }
+  if (est === 'morada') { // el aura: lenguas moradas que salen de toda la orilla hacia afuera y parpadean, y chispas moradas que suben
+    x.save(); x.globalCompositeOperation = 'lighter'; const cols = ['167,123,255', '190,110,255', '130,70,230'], per = 2 * (w + h);
+    x.save(); x.globalCompositeOperation = 'source-over'; x.shadowColor = `rgba(155,90,255,${.75 + .2 * Math.sin(t * 3)})`; x.shadowBlur = w * .22; x.fillStyle = 'rgba(40,15,80,.9)'; x.beginPath(); x.roundRect(-w / 2, -h / 2, w, h, R); x.fill(); x.restore();
+    for (let k = 0; k < 90; k++) { const a = azar(k + 5), f = a(), d0 = (k / 90 + a() * .01) * per, [bx, by, nx, ny] = d0 < w ? [-w / 2 + d0, -h / 2, 0, -1] : d0 < w + h ? [w / 2, -h / 2 + d0 - w, 1, 0] : d0 < 2 * w + h ? [w / 2 - (d0 - w - h), h / 2, 0, 1] : [-w / 2, h / 2 - (d0 - 2 * w - h), -1, 0];
+      const largo = w * (.08 + a() * .2) * (.5 + .5 * Math.abs(Math.sin(t * 6 + f * 30))), ww = w * (.015 + a() * .022), ux = nx * .7, uy = ny * .7 - .6, ul = Math.hypot(ux, uy), dx = ux / ul, dy = uy / ul, px = -dy, py = dx, sw = Math.sin(t * 4 + f * 20) * ww * .8;
+      const tx = bx + dx * largo + px * sw, ty = by + dy * largo + py * sw; g = x.createLinearGradient(bx, by, tx, ty); g.addColorStop(0, `rgba(${cols[k % 3]},.42)`); g.addColorStop(.6, `rgba(${cols[k % 3]},.18)`); g.addColorStop(1, `rgba(${cols[k % 3]},0)`);
+      x.fillStyle = g; x.beginPath(); x.moveTo(bx + px * ww, by + py * ww); x.quadraticCurveTo(bx + dx * largo * .5 + px * ww, by + dy * largo * .5 + py * ww, tx, ty); x.quadraticCurveTo(bx + dx * largo * .5 - px * ww, by + dy * largo * .5 - py * ww, bx - px * ww, by - py * ww); x.closePath(); x.fill(); }
+    for (let k = 0; k < 20; k++) { const a = azar(k + 40), sp = .25 + a() * .35, u = (t * sp + a()) % 1, px = (a() - .5) * w * 1.25 + Math.sin(t * 2 + k) * 10, py = h * .55 - u * h * 1.25; x.fillStyle = `rgba(200,160,255,${(1 - u) * .9})`; x.beginPath(); x.arc(px, py, 2 + a() * 3.5, 0, 7); x.fill(); }
     x.restore(); }
   // el marco
-  x.save(); x.shadowColor = est === 'aurora' ? `rgba(94,255,200,${.35 + .1 * Math.sin(t * 2)})` : 'rgba(0,0,0,.55)'; x.shadowBlur = est === 'aurora' ? w * .1 : w * .1; x.shadowOffsetY = est === 'aurora' ? 0 : w * .04;
+  x.save(); x.shadowColor = est === 'morada' ? `rgba(155,107,255,${.6 + .25 * Math.sin(t * 3)})` : 'rgba(0,0,0,.55)'; x.shadowBlur = w * (est === 'morada' ? .14 : .1); x.shadowOffsetY = est === 'morada' ? 0 : w * .04;
   if (est === 'oro') { g = x.createConicGradient ? x.createConicGradient(t * .9, 0, 0) : x.createLinearGradient(-w / 2, 0, w / 2, 0); ['#ffe38c', '#f6b73c', '#fff3c4', '#dd8d16', '#ffe38c'].forEach((c, i) => g.addColorStop(i / 4, c)); }
   else if (est === 'hielo') { g = x.createConicGradient ? x.createConicGradient(t * .6, 0, 0) : x.createLinearGradient(-w / 2, 0, w / 2, 0); ['#ffffff', '#bfe6ff', '#e9f8ff', '#8fc6e8', '#ffffff'].forEach((c, i) => g.addColorStop(i / 4, c)); }
-  else if (est === 'aurora') { g = x.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, '#0a2236'); g.addColorStop(1, '#050c16'); }
+  else if (est === 'morada') { g = x.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2); g.addColorStop(0, '#1c1430'); g.addColorStop(.5, '#050308'); g.addColorStop(1, '#1c1430'); }
   else { g = x.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2); g.addColorStop(0, '#ffffff'); g.addColorStop(.4, '#9fb3cc'); g.addColorStop(.7, '#eef2f7'); g.addColorStop(1, '#6f819b'); }
   x.fillStyle = g; rr(0, R); x.fill(); x.restore();
   if (est === 'base') { rr(w * .011); g = x.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, '#1b2b4d'); g.addColorStop(1, '#0b1530'); x.fillStyle = g; x.fill(); rr(b - 4); x.lineWidth = 3; x.strokeStyle = '#c6cfda'; x.stroke(); }
   if (est === 'hielo') { x.save(); rr(0, R); x.clip(); const a = azar(9); for (let i = 0; i < 60; i++) { const px = (a() - .5) * w, py = (a() - .5) * h, s = w * (.03 + a() * .08), al = .15 + .25 * a(); x.beginPath(); x.moveTo(px, py - s); x.lineTo(px + s * .6, py + s * .4); x.lineTo(px - s * .5, py + s * .5); x.closePath(); x.fillStyle = `rgba(255,255,255,${al})`; x.fill(); } x.restore(); }
-  if (est === 'aurora') { x.save(); rr(0, R); x.clip(); x.globalCompositeOperation = 'lighter'; const cols = ['94,255,200', '63,169,255', '167,123,255'];
-    for (let k = 0; k < 5; k++) { const cx0 = -w / 2 + ((k * 97 + t * 50) % (w + 120)) - 60, ww = w * .2; g = x.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, `rgba(${cols[k % 3]},0)`); g.addColorStop(.35, `rgba(${cols[k % 3]},.35)`); g.addColorStop(1, `rgba(${cols[k % 3]},0)`);
-      x.fillStyle = g; x.fillRect(cx0, -h / 2, ww, h); }
-    x.restore(); rr(5); x.lineWidth = 3; x.strokeStyle = 'rgba(160,255,220,.85)'; x.stroke(); rr(b - 4); x.lineWidth = 2; x.strokeStyle = 'rgba(200,240,255,.6)'; x.stroke(); }
+  if (est === 'morada') { x.save(); rr(0, R); x.clip(); x.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 4; k++) { const cx0 = -w / 2 + ((k * 113 + t * 55) % (w + 140)) - 70; g = x.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, 'rgba(167,123,255,0)'); g.addColorStop(.4, 'rgba(167,123,255,.4)'); g.addColorStop(1, 'rgba(130,70,230,0)'); x.fillStyle = g; x.fillRect(cx0, -h / 2, w * .2, h); }
+    x.restore(); rr(4); x.lineWidth = 3; x.strokeStyle = `rgba(155,107,255,${.7 + .3 * Math.sin(t * 3)})`; x.stroke(); rr(b - 4); x.lineWidth = 2; x.strokeStyle = 'rgba(214,200,255,.55)'; x.stroke(); }
   x.drawImage(fondoCarta(im, p.id, p.nom, w - 2 * b, h - 2 * b, est), -w / 2 + b, -h / 2 + b);
   // la placa del nombre, lo que hizo y el año
   const py = h / 2 - b - h * .3, ph = h * .12; g = x.createLinearGradient(0, py, 0, py + ph); C.metal.forEach((c0, i) => g.addColorStop(i / 2, c0));
   x.fillStyle = g; x.beginPath(); x.moveTo(-w / 2 + b, py); x.lineTo(w / 2 - b, py); x.lineTo(w / 2 - b - ph * .5, py + ph); x.lineTo(-w / 2 + b + ph * .5, py + ph); x.closePath(); x.fill();
-  txt(K.cabe(lineas[0], `italic 900 ${ph * .82}px ${DISP}`, w - 3 * b - ph), 0, py + ph * .8, `italic 900 ${ph * .82}px ${DISP}`, '#0b1838', 'center', 1);
+  if (est === 'morada') { x.strokeStyle = 'rgba(155,107,255,.9)'; x.lineWidth = 2; x.stroke(); }
+  txt(K.cabe(lineas[0], `italic 900 ${ph * .82}px ${DISP}`, w - 3 * b - ph), 0, py + ph * .8, `italic 900 ${ph * .82}px ${DISP}`, est === 'morada' ? '#ffffff' : '#0b1838', 'center', 1);
   if (lineas[1]) txt(lineas[1], 0, py + ph + h * .085, K.ajusta(lineas[1], `italic 900 #px ${DISP}`, w - 3 * b, Math.round(h * .072), 1), C.fino, 'center', 1);
   txt('BELUGAS HDP · 2026', 0, h / 2 - b - h * .035, `800 ${Math.max(9, Math.round(w * .036))}px Inter`, 'rgba(214,228,247,.55)', 'center', 3);
   if (im.lb) x.drawImage(im.lb, -w / 2 + b + 8, -h / 2 + b + 8, w * .17, w * .17 * im.lb.height / im.lb.width);
@@ -2206,7 +2210,7 @@ function carta(x, im, p, cx, cy, w, est, t, lineas) {
   if (p.corona && im.corona) { const cw = w * .3, ch = cw * im.corona.height / im.corona.width; x.drawImage(im.corona, -cw / 2, -h / 2 - ch * .55, cw, ch); }
   // el destello que barre la tarjeta cada rato
   const s = (t * .55 + (String(p.id).length % 5) * .13) % 1.6; if (s < 1) { x.save(); rr(0, R); x.clip(); x.globalCompositeOperation = 'lighter';
-    const sx = -w + 2 * w * s; g = x.createLinearGradient(sx - w * .25, -h / 2, sx + w * .25, h / 2); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    const sx = -w + 2 * w * s; g = x.createLinearGradient(sx - w * .25, -h / 2, sx + w * .25, h / 2); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, est === 'morada' ? 'rgba(200,170,255,.32)' : 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
     x.fillStyle = g; x.fillRect(-w / 2, -h / 2, w, h); x.restore(); }
   x.restore();
 }
