@@ -2309,9 +2309,10 @@ function pintaResumen(x, d, im, u = 99, tv = null) {
 // por el centro se agrandan. Las 3 que más sumaron entran al final y vuelan a su lugar del podio, donde se queda el resumen ----------
 const PODIO = (n) => { const w = n === 1 ? 330 : 280; return { w, cx: VW / 2 + (n === 1 ? 0 : n === 2 ? -325 : 325), cy: (n === 1 ? 720 : 770) + w * .7 }; };
 const restoDe = (d) => d.todos.filter((p) => !d.jug.some((j) => j.id === p.id));
-const durDesfile = (d) => (d.jug.length ? restoDe(d).length * .3 + 1.4 + d.jug.length * .45 + .5 : 0);
+const DES_LENTO = 1.7; // Mau, 25-nov: el desfile iba muy rápido; todo pasa 1.7 veces más despacio (con 9 jugadores, de 5 s a 8.6 s)
+const durDesfile = (d) => (d.jug.length ? (restoDe(d).length * .3 + 1.4 + d.jug.length * .45 + .5) * DES_LENTO : 0);
 function pintaDesfile(x, d, im, u, t) {
-  const { txt } = kit(x), resto = restoDe(d), Y = 935, va = (k) => k * .3, D = durDesfile(d), al = frena(tramo(u, D - .6, D - .1));
+  u /= DES_LENTO; const { txt } = kit(x), resto = restoDe(d), Y = 935, va = (k) => k * .3, D = durDesfile(d) / DES_LENTO, al = frena(tramo(u, D - .6, D - .1));
   fondoResumen(x, d, im, t);
   // el título y una luz al centro, por donde pasa cada tarjeta
   x.save(); x.globalAlpha = frena(tramo(u, .1, .5)) * (1 - al); txt('TODOS LOS QUE JUGARON', VW / 2, 640, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6); x.restore();
