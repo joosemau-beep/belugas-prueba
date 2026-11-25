@@ -2237,7 +2237,7 @@ test('iPad parado: una columna (campo, botones y la lista); las jugadas paso a p
   await pg.context().close();
 });
 
-test('«Compartir» hace el video del partido (la beluga, el ataque y la defensa con tarjetas y el resumen con todos los que jugaron) y lo enseña antes de mandarlo; la imagen del final sale desde la misma hoja y es la de respaldo sin grabadora', async () => {
+test('«Compartir» hace el video del partido (la beluga, el ataque y la defensa con tarjetas y el resumen con los 3 que más sumaron) y lo enseña antes de mandarlo; la imagen del final sale desde la misma hoja y es la de respaldo sin grabadora', async () => {
   const pg = await telefono(srv.url);
   // cada cuadro se puede pintar en cualquier segundo, para los partidos de solo marcador (los de antes), un empate y los marcados
   const cuadros = () => pg.evaluate(async () => { const c = Object.assign(document.createElement('canvas'), { width: VW, height: VH }), x = c.getContext('2d'), o = [];
@@ -2248,13 +2248,13 @@ test('«Compartir» hace el video del partido (la beluga, el ataque y la defensa
       o.push([g.id, seccionesDe(d).length, durVideo(d), suma('TD') === tds.filter(([, c]) => c).length && suma('TD LANZADOS') === tds.filter(([, c, qb]) => c === 'pase' && qb).length]); }
     return o; });
   const solos = await cuadros();
-  // dura 3.5 s el resultado + 2.7 por pantalla de lo que pasó (ataque y, si hubo algo, defensa) + 3.6 el resumen con todos; solo marcador (aquí, no en la de prueba publicada), 7.1 s
-  const dura = ([, n, dur, ok]) => Math.abs(dur - (7.1 + n * 2.7)) < .001 && ok;
+  // dura 3.5 s el resultado + 2.7 por pantalla de lo que pasó (ataque y, si hubo algo, defensa) + 3.2 el resumen con los 3 que más sumaron; solo marcador (aquí, no en la de prueba publicada), 6.7 s
+  const dura = ([, n, dur, ok]) => Math.abs(dur - (6.7 + n * 2.7)) < .001 && ok;
   assert.ok(solos.every(dura) && (process.env.URL || solos.every(([, n]) => n === 0)), JSON.stringify(solos));
   await sembrar(pg, true);
   const todos = await cuadros();
   assert.ok(todos.every(dura), JSON.stringify(todos));
-  // Lobos 33–12: ~12.5 s
+  // Lobos 33–12: ~12 s
   const lob = todos.find(([id]) => id === 'g4'); assert.ok(dura(lob) && lob[1] === 2, JSON.stringify(lob)); // Lobos: ataque y defensa
   assert.deepEqual(pg.errores, []);
   // el menú de compartir del teléfono, de mentiras: apunta lo que se le manda
