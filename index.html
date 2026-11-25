@@ -2408,8 +2408,9 @@ function escenaResultado(x, d, im, t) {
   // abajo: el récord
   x.save(); x.globalAlpha = tramo(t, 2.9, 3.3); txt(`BELUGAS HDP · RÉCORD ${d.record}`, VW / 2, 1300, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6); x.restore();
 }
-// los tiempos: el resultado, lo que pasó (ataque y, si hubo algo, defensa) y el resumen (entran las tarjetas y se queda quieto)
-const RES_S = 3.5, SEC_S = 2.7, RESU_S = 3.2, OLA_S = .45, CAMBIO_S = .55;
+// los tiempos: el resultado, lo que pasó (ataque y, si hubo algo, defensa) y el resumen. Cada pantalla se queda quieta un rato después de que
+// acaba su animación, para alcanzar a verla antes de pasar a la que sigue (Mau, 24-nov)
+const RES_S = 4.5, SEC_S = 4, RESU_S = 4, OLA_S = .45, CAMBIO_S = .55;
 const durVideo = (d) => RES_S + seccionesDe(d).length * SEC_S + RESU_S;
 // una ola que sube y tapa lo de antes con lo nuevo (p de 0 a 1)
 function olaPasa(x, t, p, nuevo) {

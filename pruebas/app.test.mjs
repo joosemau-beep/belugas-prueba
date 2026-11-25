@@ -2248,13 +2248,13 @@ test('«Compartir» hace el video del partido (la beluga, el ataque y la defensa
       o.push([g.id, seccionesDe(d).length, durVideo(d), suma('TD') === tds.filter(([, c]) => c).length && suma('TD LANZADOS') === tds.filter(([, c, qb]) => c === 'pase' && qb).length]); }
     return o; });
   const solos = await cuadros();
-  // dura 3.5 s el resultado + 2.7 por pantalla de lo que pasó (ataque y, si hubo algo, defensa) + 3.2 el resumen con los 3 que más sumaron; solo marcador (aquí, no en la de prueba publicada), 6.7 s
-  const dura = ([, n, dur, ok]) => Math.abs(dur - (6.7 + n * 2.7)) < .001 && ok;
+  // dura 4.5 s el resultado + 4 por pantalla de lo que pasó (ataque y, si hubo algo, defensa) + 4 el resumen con los 3 que más sumaron; solo marcador (aquí, no en la de prueba publicada), 8.5 s
+  const dura = ([, n, dur, ok]) => Math.abs(dur - (8.5 + n * 4)) < .001 && ok;
   assert.ok(solos.every(dura) && (process.env.URL || solos.every(([, n]) => n === 0)), JSON.stringify(solos));
   await sembrar(pg, true);
   const todos = await cuadros();
   assert.ok(todos.every(dura), JSON.stringify(todos));
-  // Lobos 33–12: ~12 s
+  // Lobos 33–12: ~16.5 s
   const lob = todos.find(([id]) => id === 'g4'); assert.ok(dura(lob) && lob[1] === 2, JSON.stringify(lob)); // Lobos: ataque y defensa
   assert.deepEqual(pg.errores, []);
   // el menú de compartir del teléfono, de mentiras: apunta lo que se le manda
@@ -2273,7 +2273,7 @@ test('«Compartir» hace el video del partido (la beluga, el ataque y la defensa
   await pg.evaluate(() => { window.__lienzo = document.querySelector('.vid-caja canvas'); pintar(); });
   assert.ok(await pg.evaluate(() => document.querySelector('.vid-caja canvas') === window.__lienzo));
   // al terminar se ve el video ya hecho y «Compartir video» lo manda
-  await pg.waitForSelector('#tel .hoja .vid-caja video', { timeout: 30000 });
+  await pg.waitForSelector('#tel .hoja .vid-caja video', { timeout: 45000 });
   assert.match(await pg.locator('#tel .hoja h3').innerText(), /El video del partido/);
   const v = await pg.evaluate(() => ({ tam: VID.blob.size, tipo: VID.blob.type }));
   assert.match(v.tipo, /^video\/(mp4|webm)$/); assert.ok(v.tam > 100000, String(v.tam));
