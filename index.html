@@ -2108,6 +2108,8 @@ function datosFinal(g) {
     defensa: [['MÁS BANDERAS', band.length && band[0].n > 1 ? band.filter((p) => p.n === band[0].n).slice(0, 2).map((p) => ({ ...p, siempre: true })) : []], ['INTERCEPCIONES', de('intn')], ['PICK 6', quienes(tds.filter(([, como]) => !como).map(([id]) => id))],
       ['EXTRA REGRESADO', de('regx')], ['SAFETY', de('saf')]].filter(([, l]) => l.length),
     pts: Object.fromEntries(Object.keys(st).filter((id) => P(id)).map((id) => [id, puntosDe(st[id])])), // para la categoría de cada tarjeta
+    // todos los que jugaron (los que vinieron, o los que hicieron algo), del que menos sumó al que más: el desfile del final
+    todos: ((g.partido && g.partido.van && g.partido.van.length) ? g.partido.van : Object.keys(st)).filter((id) => P(id)).map((id) => ({ id, nom: sinEsc(P(id).nombre), pts: st[id] ? puntosDe(st[id]) : 0 })).sort((a, b) => a.pts - b.pts),
     jug: top.map((id) => { const p = P(id), x = g.st[id]; return { id, nom: sinEsc(p.nombre), cara: p.cara, pts: puntosDe(x), tira: statsJuego(x, qb === id, g, id).tira.map(([k, v]) => [k, sinEsc(String(v))]) }; }) };
 }
 const textoFinal = (d) => [`Belugas ${d.nos} – ${d.ellos} ${d.rivalNom}`, `${d.res} · ${d.fecha}`, ...d.anot.map(([t, s]) => t + (s ? ` (${s.charAt(0).toLowerCase() + s.slice(1)})` : '')), `Récord de la temporada: ${d.record}`].join('\n');
@@ -2265,8 +2267,9 @@ function pintaSeccion(x, d, im, [tit, filas], u) {
 }
 // ---------- el resumen: el resultado y los 3 que más sumaron en su tarjeta (Mau, 24-nov: «al final solo como estaba»); la última pantalla y la
 // imagen de respaldo. u = segundos desde que entra; quieto desde 2.4 s (así el último cuadro es la imagen) ----------
-function pintaResumen(x, d, im, u = 99) {
-  const K = kit(x), { txt } = K, r = im.r, gana = d.nos > d.ellos, t = Math.min(u, 2.4);
+// el fondo del resumen (y del desfile): noche de mar, arriba el resultado y abajo las olas y el récord
+function fondoResumen(x, d, im, t) {
+  const K = kit(x), { txt } = K, r = im.r, gana = d.nos > d.ellos;
   let g = x.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#061027'); g.addColorStop(.55, '#0d2347'); g.addColorStop(1, '#14386b'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
   g = x.createRadialGradient(VW / 2, 330, 0, VW / 2, 330, 640); g.addColorStop(0, 'rgba(63,143,230,.3)'); g.addColorStop(1, 'rgba(63,143,230,0)'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
   rayos(x, t, .6);
@@ -2279,6 +2282,12 @@ function pintaResumen(x, d, im, u = 99) {
   x.fillStyle = '#fff'; x.beginPath(); x.moveTo(VW / 2 - 28, 372); x.lineTo(VW / 2 + 32, 372); x.lineTo(VW / 2 + 28, 394); x.lineTo(VW / 2 - 32, 394); x.fill(); x.restore();
   pincel(x, VW / 2, 528, 470, 80, 1, gana ? '#1d4f8f' : '#26324c', gana ? '#3f8fe6' : '#34425f');
   txt(d.res.toUpperCase(), VW / 2, 553, `italic 900 66px ${DISP}`, gana ? '#fff' : '#e6ecf5', 'center', 12);
+  olas(x, t, 1262, 10, 1, .5, 'rgba(29,79,143,.6)', '#061027', 'rgba(140,200,255,.35)');
+  txt(`BELUGAS HDP · RÉCORD ${d.record}`, VW / 2, 1318, '800 22px Inter', 'rgba(214,228,247,.7)', 'center', 6);
+}
+function pintaResumen(x, d, im, u = 99, tv = null) {
+  const K = kit(x), { txt } = K, t = tv == null ? Math.min(u, 2.4) : tv; // tv: el tiempo del video (brillos vivos); sin él, quieto desde 2.4 s
+  fondoResumen(x, d, im, t);
   if (!d.jug.length) txt('SOLO SE REGISTRÓ EL MARCADOR', VW / 2, 860, '800 24px Inter', 'rgba(214,228,247,.6)', 'center', 5);
   else { txt('LOS QUE MÁS SUMARON', VW / 2, 640, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6);
     // el podio: el primero al centro, más grande, más arriba y con corona; entran del tercero al primero, volteándose
@@ -2286,8 +2295,24 @@ function pintaResumen(x, d, im, u = 99) {
       const e = tramo(u, .3 + (3 - n) * .2, .75 + (3 - n) * .2); if (e <= 0) return;
       x.save(); x.translate(cx, cy); x.scale(e < .5 ? .02 + e * 1.96 : 1, 1); carta(x, im, { ...j, corona: n === 1 }, 0, 0, w, CATEGORIA(j.pts), t, [j.nom.toUpperCase(), `${j.pts} PTS`]); x.restore();
       x.save(); x.globalAlpha = frena(tramo(u, .6 + (3 - n) * .2, .9 + (3 - n) * .2)); txt(`${n}º`, cx, cy + w * .7 + 54, `italic 900 54px ${DISP}`, n === 1 ? '#f6c453' : '#d6e4f7'); x.restore(); }); }
-  olas(x, t, 1262, 10, 1, .5, 'rgba(29,79,143,.6)', '#061027', 'rgba(140,200,255,.35)');
-  txt(`BELUGAS HDP · RÉCORD ${d.record}`, VW / 2, 1318, '800 22px Inter', 'rgba(214,228,247,.7)', 'center', 6);
+}
+// ---------- el desfile (Mau, 24-nov): pasan las tarjetas de todos los que jugaron, de derecha a izquierda, del que menos sumó al que más; al pasar
+// por el centro se agrandan. Las 3 que más sumaron entran al final y vuelan a su lugar del podio, donde se queda el resumen ----------
+const PODIO = (n) => { const w = n === 1 ? 300 : 262; return { w, cx: VW / 2 + (n === 1 ? 0 : n === 2 ? -310 : 310), cy: (n === 1 ? 720 : 770) + w * .7 }; };
+const restoDe = (d) => d.todos.filter((p) => !d.jug.some((j) => j.id === p.id));
+const durDesfile = (d) => (d.jug.length ? restoDe(d).length * .3 + 1.4 + d.jug.length * .45 + .5 : 0);
+function pintaDesfile(x, d, im, u, t) {
+  const { txt } = kit(x), resto = restoDe(d), Y = 900, va = (k) => k * .3, D = durDesfile(d);
+  fondoResumen(x, d, im, t);
+  const una = (p, n, cx, cy, w) => { x.save(); x.translate(cx, cy); carta(x, im, { ...p, corona: n === 1 }, 0, 0, w, CATEGORIA(p.pts), t, [p.nom.toUpperCase(), `${p.pts} PTS`]); x.restore(); };
+  resto.forEach((p, k) => { const v = (u - va(k)) / 1.4; if (v <= 0 || v >= 1) return; const cx = VW + 200 - (VW + 400) * v; una(p, 0, cx, Y, 200 + 90 * (1 - Math.min(1, Math.abs(cx - VW / 2) / (VW / 2)))); });
+  const t3 = va(resto.length) + .3;
+  d.jug.slice(0, 3).map((j, i) => [j, i + 1]).reverse().forEach(([j, n], k) => { const t0 = t3 + k * .45, v = tramo(u, t0, t0 + .7); if (v <= 0) return; const P0 = PODIO(n);
+    if (v < .5) { const e = frena(tramo(v, 0, .5)); una(j, n, VW + 200 - (VW / 2 + 200) * e, Y, 200 + 90 * e); }
+    else { const e = suave(tramo(v, .5, 1)); una(j, n, VW / 2 + (P0.cx - VW / 2) * e, Y + (P0.cy - Y) * e, 290 + (P0.w - 290) * e); } });
+  // al final aparecen el título y los lugares, como en el resumen
+  const al = frena(tramo(u, D - .6, D - .1)); if (al > 0) { x.save(); x.globalAlpha = al; txt('LOS QUE MÁS SUMARON', VW / 2, 640, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6);
+    d.jug.slice(0, 3).forEach((j, i) => { const P0 = PODIO(i + 1); txt(`${i + 1}º`, P0.cx, P0.cy + P0.w * .7 + 54, `italic 900 54px ${DISP}`, i === 0 ? '#f6c453' : '#d6e4f7'); }); x.restore(); }
 }
 // ---------- piezas que se mueven ----------
 // La beluga: la mascota que mandó Mau (24-nov) con casco «B» y jersey «BELUGAS 10», recortada sobre transparente (archivos/beluga.webp).
@@ -2421,10 +2446,10 @@ function escenaResultado(x, d, im, t) {
   // abajo: el récord
   x.save(); x.globalAlpha = tramo(t, 2.9, 3.3); txt(`BELUGAS HDP · RÉCORD ${d.record}`, VW / 2, 1300, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6); x.restore();
 }
-// los tiempos: el resultado, lo que pasó (ataque y, si hubo algo, defensa) y el resumen. Cada pantalla se queda quieta un rato después de que
+// los tiempos: el resultado, lo que pasó (ataque y, si hubo algo, defensa), el desfile de todos y el resumen. Cada pantalla se queda un rato después de que
 // acaba su animación, para alcanzar a verla antes de pasar a la que sigue (Mau, 24-nov)
-const RES_S = 4.5, SEC_S = 4, RESU_S = 4, OLA_S = .45, CAMBIO_S = .55;
-const durVideo = (d) => RES_S + seccionesDe(d).length * SEC_S + RESU_S;
+const RES_S = 4.5, SEC_S = 4, FIN_S = 3, OLA_S = .45, CAMBIO_S = .55;
+const durVideo = (d) => RES_S + seccionesDe(d).length * SEC_S + durDesfile(d) + FIN_S;
 // una ola que sube y tapa lo de antes con lo nuevo (p de 0 a 1)
 function olaPasa(x, t, p, nuevo) {
   if (p <= 0) return; const base = VH + 120 - (VH + 360) * suave(p), ola = new Path2D(), cresta = new Path2D(); // sus propios trazos: lo que pinta «nuevo» no los toca
@@ -2443,9 +2468,9 @@ function cambioOro(x, p, vieja, nueva) {
 }
 // el cuadro del segundo t
 function dibujaCuadro(x, d, im, t) {
-  const secs = seccionesDe(d), n = secs.length, R0 = RES_S + n * SEC_S;
-  const sec = (k, u) => pintaSeccion(x, d, im, secs[k], Math.max(0, u));
-  const resu = (u) => (u < 2.4 ? pintaResumen(x, d, im, u) : x.drawImage(im.fin, 0, 0)); // ya quieto es la imagen hecha
+  const secs = seccionesDe(d), n = secs.length, R0 = RES_S + n * SEC_S, DD = durDesfile(d);
+  const sec = (k, u) => pintaSeccion(x, d, im, secs[k], Math.max(0, u)), antes = () => (n ? sec(n - 1, t - (RES_S + (n - 1) * SEC_S)) : escenaResultado(x, d, im, t));
+  const fin = (u) => (DD ? pintaDesfile(x, d, im, u, t) : pintaResumen(x, d, im, u, t)), quieto = () => pintaResumen(x, d, im, 99, t); // el resumen con sus brillos vivos
   x.save();
   if (t < RES_S) escenaResultado(x, d, im, t);
   else if (t < R0) { const k = Math.floor((t - RES_S) / SEC_S), u = t - (RES_S + k * SEC_S);
@@ -2453,14 +2478,14 @@ function dibujaCuadro(x, d, im, t) {
     else if (k + 1 < n && u > SEC_S - CAMBIO_S) cambioOro(x, (u - (SEC_S - CAMBIO_S)) / CAMBIO_S, () => sec(k, u), () => sec(k + 1, u - SEC_S));
     else sec(k, u); }
   else { const u = t - R0;
-    if (u < OLA_S) { if (n) sec(n - 1, t - (RES_S + (n - 1) * SEC_S)); else escenaResultado(x, d, im, t); olaPasa(x, t, u / OLA_S, () => resu(u)); } else resu(u); }
+    if (u < OLA_S) { antes(); olaPasa(x, t, u / OLA_S, () => fin(u)); } else if (u < DD) fin(u); else if (DD) quieto(); else fin(u); }
   x.restore();
 }
-// lo que se carga una vez: letras, logos, corona, la beluga y las fotos (de los 3 que más sumaron y de los de ataque y defensa); el resumen ya
-// pintado (fin), que es también la imagen
+// lo que se carga una vez: letras, logos, corona y las fotos de los 3 que más sumaron; el resumen ya pintado (fin), que es la imagen. Para el
+// video, además, la beluga y las fotos de todos los que jugaron (la imagen sola no las espera)
 async function cargaFinal(d, video) {
   await Promise.all(['italic 900 100px "Barlow Condensed"', '800 40px Inter', '700 40px Inter', '600 40px Inter'].map((f) => document.fonts.load(f).catch(() => null)));
-  const r = R(d.rival), ids = [...new Set([...d.jug.map((j) => j.id), ...seccionesDe(d).flatMap(([, f]) => f.flatMap(([, gt]) => gt.map((p) => p.id)))])];
+  const r = R(d.rival), ids = !video ? d.jug.map((j) => j.id) : [...new Set([...d.jug.map((j) => j.id), ...d.todos.map((j) => j.id), ...seccionesDe(d).flatMap(([, f]) => f.flatMap(([, gt]) => gt.map((p) => p.id)))])];
   const [lb, lr, corona, bel, ...fotos] = await Promise.all([cargaImg(LOGO), r.logo ? cargaImg(r.logo) : null, cargaImg(CORONA), video ? cargaImg(BELUGA_IMG) : null, ...ids.map((id) => (P(id) && P(id).cara ? cargaImg(P(id).cara) : null))]);
   const im = { r, lb, lr, corona, beluga: bel, cara: Object.fromEntries(ids.map((id, i) => [id, fotos[i]])) }, fin = Object.assign(document.createElement('canvas'), { width: VW, height: VH });
   pintaResumen(fin.getContext('2d'), d, im); im.fin = fin;
