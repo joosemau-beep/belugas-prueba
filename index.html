@@ -2195,13 +2195,16 @@ function carta(x, im, p, cx, cy, w, est, t, lineas) {
     for (let k = 0; k < 4; k++) { const cx0 = -w / 2 + ((k * 113 + t * 55) % (w + 140)) - 70; g = x.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, 'rgba(167,123,255,0)'); g.addColorStop(.4, 'rgba(167,123,255,.4)'); g.addColorStop(1, 'rgba(130,70,230,0)'); x.fillStyle = g; x.fillRect(cx0, -h / 2, w * .2, h); }
     x.restore(); rr(4); x.lineWidth = 3; x.strokeStyle = `rgba(155,107,255,${.7 + .3 * Math.sin(t * 3)})`; x.stroke(); rr(b - 4); x.lineWidth = 2; x.strokeStyle = 'rgba(214,200,255,.55)'; x.stroke(); }
   x.drawImage(fondoCarta(im, p.id, p.nom, w - 2 * b, h - 2 * b, est), -w / 2 + b, -h / 2 + b);
-  if (est === 'hielo') { // copos de nieve de seis puntas por la orilla y más grandes en las esquinas (quietos: solo las dos más altas brillan)
+  if (est === 'hielo') { // copos de nieve de seis puntas que caen por la orilla, y los de las esquinas giran (Mau, 24-nov: «que se muevan»)
     const copo = (cx0, cy0, r, ang) => { x.save(); x.translate(cx0, cy0); x.rotate(ang); x.strokeStyle = 'rgba(255,255,255,.95)'; x.shadowColor = 'rgba(60,140,220,.9)'; x.shadowBlur = 4; x.lineWidth = Math.max(1.2, r * .13); x.lineCap = 'round';
       for (let k = 0; k < 6; k++) { x.rotate(Math.PI / 3); x.beginPath(); x.moveTo(0, 0); x.lineTo(0, -r); x.moveTo(0, -r * .55); x.lineTo(-r * .28, -r * .78); x.moveTo(0, -r * .55); x.lineTo(r * .28, -r * .78); x.stroke(); } x.restore(); };
-    const a = azar(21), per = 2 * (w + h);
-    for (let i = 0; i < 18; i++) { const d0 = (i / 18 + a() * .03) * per, m = b * .5, [px, py] = d0 < w ? [-w / 2 + d0, -h / 2 + m] : d0 < w + h ? [w / 2 - m, -h / 2 + d0 - w] : d0 < 2 * w + h ? [w / 2 - (d0 - w - h), h / 2 - m] : [-w / 2 + m, h / 2 - (d0 - 2 * w - h)];
-      copo(Math.max(-w / 2 + m, Math.min(w / 2 - m, px)), Math.max(-h / 2 + m, Math.min(h / 2 - m, py)), w * (.022 + a() * .02), a()); }
-    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy], i) => copo(sx * (w / 2 - b * 1.6), sy * (h / 2 - b * 1.6), w * .045, i * .4)); }
+    // caen despacio por las orillas, girando y con vaivén; unos chiquitos y más tenues caen por la carta, sin tapar la cara
+    const a = azar(21); x.save(); x.beginPath(); x.roundRect(-w / 2, -h / 2, w, h, R); x.clip();
+    for (let i = 0; i < 16; i++) { const lado = i % 2 ? 1 : -1, sp = .08 + a() * .07, f = a(), r0 = w * (.022 + a() * .022), bx = lado * (w / 2 - b * (.4 + a() * 1.4)), u = (t * sp + f) % 1;
+      copo(bx + Math.sin(t * 1.5 + f * 9) * w * .02, -h / 2 - r0 + u * (h + 2 * r0), r0, t * .8 + f * 6); }
+    x.globalAlpha = .55; for (let i = 0; i < 7; i++) { const sp = .06 + a() * .05, f = a(), r0 = w * (.014 + a() * .01), u = (t * sp + f) % 1; copo((i % 2 ? 1 : -1) * w * (.24 + a() * .16) + Math.sin(t * 1.2 + f * 7) * w * .03, -h / 2 - r0 + u * (h + 2 * r0), r0, t * .6 + f * 5); }
+    x.restore();
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy], i) => copo(sx * (w / 2 - b * 1.6), sy * (h / 2 - b * 1.6), w * .045, i * .4 + t * .4)); }
   // la placa del nombre, lo que hizo y el año
   const py = h / 2 - b - h * .3, ph = h * .12; g = x.createLinearGradient(0, py, 0, py + ph); C.metal.forEach((c0, i) => g.addColorStop(i / 2, c0));
   x.fillStyle = g; x.beginPath(); x.moveTo(-w / 2 + b, py); x.lineTo(w / 2 - b, py); x.lineTo(w / 2 - b - ph * .5, py + ph); x.lineTo(-w / 2 + b + ph * .5, py + ph); x.closePath(); x.fill();
