@@ -2245,17 +2245,18 @@ test('«Compartir» hace el video del partido (la beluga, el ataque y la defensa
       for (const t of [0, 1.3, 2.7, 3.7, 5.5, 8, 9.5, 20]) { dibujaCuadro(x, d, im, t); dibujaCuadro(x, e, im, t); }
       // al final, el ataque cuenta todos los TD (sin pick 6) y todos los pases de TD
       const suma = (k) => ((d.ataque.find(([n]) => n === k) || [, []])[1]).reduce((a, p) => a + p.n, 0), tds = g.tds || [];
-      o.push([g.id, d.jug.length, durVideo(d), suma('TD') === tds.filter(([, c]) => c).length && suma('TD LANZADOS') === tds.filter(([, c, qb]) => c === 'pase' && qb).length]); }
+      o.push([g.id, seccionesDe(d).length, durVideo(d), suma('TD') === tds.filter(([, c]) => c).length && suma('TD LANZADOS') === tds.filter(([, c, qb]) => c === 'pase' && qb).length]); }
     return o; });
   const solos = await cuadros();
-  // dura 4.5 s el resultado + 3 por cada uno de los que más sumaron (hasta 3) + 3.5 el cierre; solo marcador (aquí, no en la de prueba publicada): 8 s
-  const dura = ([, n, dur, ok]) => ok && Math.abs(dur - (8 + n * 3)) < .001;
+  // dura 4.5 s el resultado + 4 por pantalla de lo que pasó (ataque y, si hubo algo, defensa) + el desfile de todos (según cuántos jugaron) + 3 el resumen;
+  // solo marcador (aquí, no en la de prueba publicada): 7.5 s
+  const dura = ([, n, dur, ok]) => ok && (n ? dur > 7.5 + n * 4 && dur < 30 : Math.abs(dur - 7.5) < .001);
   assert.ok(solos.every(dura) && (process.env.URL || solos.every(([, n]) => n === 0)), JSON.stringify(solos));
   await sembrar(pg, true);
   const todos = await cuadros();
   assert.ok(todos.every(dura), JSON.stringify(todos));
   // Lobos 33–12: ataque y defensa
-  const lob = todos.find(([id]) => id === 'g4'); assert.ok(dura(lob) && lob[1] === 3, JSON.stringify(lob)); // Lobos: los 3 que más sumaron, 17 s
+  const lob = todos.find(([id]) => id === 'g4'); assert.ok(dura(lob) && lob[1] === 2, JSON.stringify(lob)); // Lobos: ataque y defensa
   assert.deepEqual(pg.errores, []);
   // el menú de compartir del teléfono, de mentiras: apunta lo que se le manda
   await pg.evaluate(() => { window.__mandado = []; navigator.canShare = () => true; navigator.share = async (o) => { window.__mandado.push((o.files || []).map((f) => [f.name, f.type])); }; });
