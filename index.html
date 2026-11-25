@@ -2444,10 +2444,11 @@ function escenaResultado(x, d, im, t) {
   // abajo: el récord
   x.save(); x.globalAlpha = tramo(t, 2.9, 3.3); txt(`BELUGAS HDP · RÉCORD ${d.record}`, VW / 2, 1300, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6); x.restore();
 }
-// los tiempos: el resultado, lo que pasó (ataque y, si hubo algo, defensa), el desfile de todos y el resumen. Cada pantalla se queda un rato después de que
-// acaba su animación, para alcanzar a verla antes de pasar a la que sigue (Mau, 24-nov)
-const RES_S = 4.5, SEC_S = 4, FIN_S = 3, OLA_S = .45, CAMBIO_S = .55;
-const durVideo = (d) => RES_S + seccionesDe(d).length * SEC_S + durDesfile(d) + FIN_S;
+// los tiempos (Mau, 25-nov: «como se veía antes de las cartas me gustaba más»): el resultado, los 3 que más sumaron uno por uno (del tercero al
+// primero) y el cierre. Cada pantalla se queda un rato después de su animación, para alcanzar a verla. Las pantallas de tarjetas (ataque, defensa,
+// desfile, podio) siguen en el código sin usarse, por si Mau las vuelve a pedir
+const RES_S = 4.5, JUG_S = 3, CIERRE_S = 3.5, OLA_S = .45;
+const durVideo = (d) => RES_S + d.jug.length * JUG_S + CIERRE_S;
 // una ola que sube y tapa lo de antes con lo nuevo (p de 0 a 1)
 function olaPasa(x, t, p, nuevo) {
   if (p <= 0) return; const base = VH + 120 - (VH + 360) * suave(p), ola = new Path2D(), cresta = new Path2D(); // sus propios trazos: lo que pinta «nuevo» no los toca
@@ -2464,41 +2465,88 @@ function cambioOro(x, p, vieja, nueva) {
   x.save(); x.beginPath(); x.moveTo(bx - 300, 0); x.lineTo(bx + 200, 0); x.lineTo(bx - 200, VH); x.lineTo(bx - 700, VH); x.closePath(); x.fillStyle = '#f6c453'; x.fill();
   x.beginPath(); x.moveTo(bx - 360, 0); x.lineTo(bx - 300, 0); x.lineTo(bx - 700, VH); x.lineTo(bx - 760, VH); x.closePath(); x.fillStyle = '#fff'; x.fill(); x.restore();
 }
+// un jugador: su foto grande, su lugar, nombre, lo que hizo y sus puntos (u = segundos desde que entra; n = 1, 2 o 3)
+function escenaJugador(x, d, im, i, u, t) {
+  const K = kit(x), { txt } = K, j = d.jug[i], n = i + 1, MED = { 1: '#f6c453', 2: '#c6cfda', 3: '#d99257' }[n];
+  let g = x.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#061027'); g.addColorStop(1, '#10305c'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
+  g = x.createRadialGradient(VW / 2, 420, 0, VW / 2, 420, 720); g.addColorStop(0, n === 1 ? 'rgba(246,196,83,.30)' : 'rgba(63,143,230,.30)'); g.addColorStop(1, 'rgba(63,143,230,0)'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
+  rayos(x, t, .7);
+  // el número de su lugar, enorme y calado detrás
+  x.save(); x.globalAlpha = .22 * frena(tramo(u, .1, .5)); x.strokeStyle = MED; x.lineWidth = 6; x.font = `italic 900 900px ${DISP}`; x.textAlign = 'center'; x.strokeText(String(n), VW / 2 + 260, 780); x.restore();
+  // la foto: entra con un acercamiento lento
+  const k = 1.08 - .08 * frena(tramo(u, 0, JUG_S));
+  if (im.fotos[i]) { x.save(); x.translate(VW / 2, 0); x.scale(k, k); x.drawImage(im.fotos[i], -VW / 2, 20); x.restore(); }
+  else { x.save(); x.fillStyle = 'rgba(255,255,255,.1)'; x.beginPath(); x.arc(VW / 2, 470, 230, 0, 7); x.fill(); txt(iniciales(j.nom), VW / 2, 540, `800 190px Inter`); x.restore(); }
+  g = x.createLinearGradient(0, 640, 0, 1000); g.addColorStop(0, 'rgba(6,16,39,0)'); g.addColorStop(1, 'rgba(6,16,39,.92)'); x.fillStyle = g; x.fillRect(0, 640, VW, VH - 640);
+  x.fillStyle = 'rgba(6,16,39,.92)'; x.fillRect(0, 1000, VW, VH - 1000);
+  // arriba: su lugar (el primero, «Jugador del partido» con corona)
+  const pe = frena(tramo(u, .15, .45));
+  x.save(); x.globalAlpha = pe; x.translate((1 - pe) * -60, 0);
+  const et = n === 1 ? 'JUGADOR DEL PARTIDO' : `${n === 2 ? 'SEGUNDO' : 'TERCERO'} EN PUNTOS`, we = K.ancho(et, '800 28px Inter', 6) + 60;
+  x.fillStyle = n === 1 ? K.oro(70, 130) : 'rgba(255,255,255,.14)'; x.beginPath(); x.roundRect(60, 72, we, 62, 31); x.fill();
+  txt(et, 60 + we / 2, 113, '800 28px Inter', n === 1 ? '#3a2600' : '#fff', 'center', 6); x.restore();
+  if (n === 1 && im.corona) { const pk = tramo(u, .45, .85); if (pk > 0) { const cw = 170, ch = cw * im.corona.height / im.corona.width;
+    x.save(); x.globalAlpha = lim(pk * 4); x.translate(VW / 2 - 200, 180 - (1 - rebota(pk)) * 160); x.rotate(-.28); x.drawImage(im.corona, -cw / 2, -ch / 2, cw, ch); x.restore(); } }
+  // el nombre entra de lado
+  const pn = frena(tramo(u, .2, .55)), fn = K.ajusta(j.nom.toUpperCase(), `italic 900 #px ${DISP}`, VW - 120, 200, 2);
+  x.save(); x.globalAlpha = pn; x.shadowColor = 'rgba(0,0,0,.5)'; x.shadowBlur = 30; txt(j.nom.toUpperCase(), 60 - (1 - pn) * 120, 1010, fn, '#fff', 'left', 2); x.restore();
+  // sus puntos suben
+  const pp = tramo(u, .35, 1.05), pts = Math.round(j.pts * frena(pp) * 10) / 10;
+  x.save(); x.globalAlpha = frena(tramo(u, .3, .5)); txt(String(pts), VW - 60, 1010, `italic 900 120px ${DISP}`, n === 1 ? '#f6c453' : '#5aaeff', 'right');
+  txt('PTS', VW - 60, 1050, '800 26px Inter', n === 1 ? '#f6c453' : '#5aaeff', 'right', 4); x.restore();
+  // lo que hizo: hasta 3 fichas (solo lo que sí hizo)
+  const tira = j.tira.filter(([, v]) => v && v !== '0' && v !== 0).slice(0, 3), fw = Math.min(300, (VW - 120 - (tira.length - 1) * 20) / Math.max(1, tira.length));
+  tira.forEach(([kk, v], q) => { const pq = rebota(tramo(u, .5 + q * .1, .8 + q * .1)); if (pq <= 0) return; const fx = 60 + q * (fw + 20);
+    x.save(); x.translate(fx + fw / 2, 1170); x.scale(pq, pq); x.fillStyle = 'rgba(255,255,255,.95)'; x.beginPath(); x.roundRect(-fw / 2, -82, fw, 164, 22); x.fill();
+    txt(String(v), 0, 18, `italic 900 96px ${DISP}`, '#0d2347'); txt(K.cabe(kk.toUpperCase(), '800 21px Inter', fw - 30), 0, 60, '800 21px Inter', '#3f6fae', 'center', 3); x.restore(); });
+}
+// el cierre, sin tarjetas: el resultado y las 3 caras de los que más sumaron en círculo (la primera más grande, con corona), con su nombre y
+// sus puntos. Es la última pantalla y la imagen de respaldo. u = segundos desde que entra; tv = el tiempo del video (sin él, quieto desde 2 s)
+function pintaCierre(x, d, im, u = 99, tv = null) {
+  const K = kit(x), { txt } = K;
+  fondoResumen(x, d, im, tv == null ? Math.min(u, 2) : tv);
+  if (!d.jug.length) { txt('SOLO SE REGISTRÓ EL MARCADOR', VW / 2, 860, '800 24px Inter', 'rgba(214,228,247,.6)', 'center', 5); return; }
+  txt('LOS QUE MÁS SUMARON', VW / 2, 650, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6);
+  [[1, 2], [0, 1], [2, 3]].filter(([i]) => d.jug[i]).forEach(([i, n]) => { const j = d.jug[i], dd = n === 1 ? 300 : 230, cx = VW / 2 + (n === 1 ? 0 : n === 2 ? -330 : 330), cy = n === 1 ? 870 : 910, e = rebota(tramo(u, .3 + (3 - n) * .2, .7 + (3 - n) * .2)); if (e <= 0) return;
+    const col = n === 1 ? '#f6c453' : n === 2 ? '#c6cfda' : '#d99257', f = im.cara[j.id], fn = `italic 900 ${n === 1 ? 76 : 60}px ${DISP}`;
+    x.save(); x.translate(cx, cy); x.scale(e, e);
+    x.save(); x.shadowColor = n === 1 ? 'rgba(246,196,83,.6)' : 'rgba(0,0,0,.5)'; x.shadowBlur = 40; x.beginPath(); x.arc(0, 0, dd / 2, 0, 7); x.fillStyle = '#1d4f8f'; x.fill(); x.restore();
+    x.save(); x.beginPath(); x.arc(0, 0, dd / 2, 0, 7); x.clip(); if (f) { const q = Math.max(dd / f.width, dd / f.height) * 1.25, fw = f.width * q; x.drawImage(f, -fw / 2, -dd / 2 - dd * .06, fw, f.height * q); } else txt(iniciales(j.nom), 0, dd * .14, `800 ${dd * .38}px Inter`); x.restore();
+    x.lineWidth = n === 1 ? 10 : 7; x.strokeStyle = col; x.beginPath(); x.arc(0, 0, dd / 2, 0, 7); x.stroke();
+    x.beginPath(); x.arc(dd * .36, dd * .36, dd * .13, 0, 7); x.fillStyle = col; x.fill(); txt(String(n), dd * .36, dd * .36 + dd * .052, `italic 900 ${dd * .15}px ${DISP}`, '#0b1838');
+    if (n === 1 && im.corona) { const cw = dd * .46, ch = cw * im.corona.height / im.corona.width; x.save(); x.translate(-dd * .3, -dd * .46); x.rotate(-.3); x.drawImage(im.corona, -cw / 2, -ch / 2, cw, ch); x.restore(); }
+    txt(K.cabe(j.nom.toUpperCase(), fn, n === 1 ? 340 : 290), 0, dd / 2 + (n === 1 ? 84 : 70), fn, '#fff', 'center', 1);
+    txt(`${j.pts} PTS`, 0, dd / 2 + (n === 1 ? 128 : 108), '800 28px Inter', n === 1 ? '#f6c453' : '#5aaeff', 'center', 3);
+    x.restore(); });
+}
 // el cuadro del segundo t
 function dibujaCuadro(x, d, im, t) {
-  const secs = seccionesDe(d), n = secs.length, R0 = RES_S + n * SEC_S, DD = durDesfile(d);
-  const sec = (k, u) => pintaSeccion(x, d, im, secs[k], Math.max(0, u)), antes = () => (n ? sec(n - 1, t - (RES_S + (n - 1) * SEC_S)) : escenaResultado(x, d, im, t));
-  const fin = (u) => (DD ? pintaDesfile(x, d, im, u, t) : pintaResumen(x, d, im, u, t)), quieto = () => pintaResumen(x, d, im, 99, t); // el resumen con sus brillos vivos
+  const nj = d.jug.length, R0 = RES_S + nj * JUG_S, jug = (q, u) => escenaJugador(x, d, im, nj - 1 - q, Math.max(0, u), t); // del tercero al primero
   x.save();
   if (t < RES_S) escenaResultado(x, d, im, t);
-  else if (t < R0) { const k = Math.floor((t - RES_S) / SEC_S), u = t - (RES_S + k * SEC_S);
-    if (k === 0 && u < OLA_S) { escenaResultado(x, d, im, t); olaPasa(x, t, u / OLA_S, () => sec(0, u)); }
-    else if (k + 1 < n && u > SEC_S - CAMBIO_S) cambioOro(x, (u - (SEC_S - CAMBIO_S)) / CAMBIO_S, () => sec(k, u), () => sec(k + 1, u - SEC_S));
-    else sec(k, u); }
-  else { const u = t - R0;
-    if (u < OLA_S) { antes(); olaPasa(x, t, u / OLA_S, () => fin(u)); } else if (u < DD) fin(u); else if (DD) quieto(); else fin(u); }
+  else if (t < R0) { const q = Math.floor((t - RES_S) / JUG_S), u = t - (RES_S + q * JUG_S);
+    if (u < OLA_S) { if (q) jug(q - 1, u + JUG_S); else escenaResultado(x, d, im, t); olaPasa(x, t, u / OLA_S, () => jug(q, u)); } else jug(q, u); }
+  else { const u = t - R0; if (u < OLA_S) { if (nj) jug(nj - 1, u + JUG_S); else escenaResultado(x, d, im, t); olaPasa(x, t, u / OLA_S, () => pintaCierre(x, d, im, u, t)); } else pintaCierre(x, d, im, u, t); }
   if (im.grano) x.drawImage(im.grano, 0, 0);
   x.restore();
 }
-// el acabado de todo el video (y de la imagen): esquinas un poco más oscuras y un grano fino, quieto, para que los degradados oscuros no se
-// vean planos ni en escalones al comprimirse. Se hace una vez (el grano a media medida) y se pone encima de cada cuadro
+// el acabado de todo el video (y de la imagen): las esquinas un poco más oscuras. Se hace una vez y se pone encima de cada cuadro. (El grano
+// fino que llevaba se quitó: hacía el video cuatro veces más pesado)
 function granoVideo() {
   const o = Object.assign(document.createElement('canvas'), { width: VW, height: VH }), c = o.getContext('2d'), g = c.createRadialGradient(VW / 2, VH * .46, VH * .36, VW / 2, VH * .46, VH * .86);
   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.34)'); c.fillStyle = g; c.fillRect(0, 0, VW, VH);
-  const n = Object.assign(document.createElement('canvas'), { width: VW / 2, height: VH / 2 }), nc = n.getContext('2d'), id = nc.createImageData(n.width, n.height), a = azar(1);
-  for (let i = 0; i < id.data.length; i += 4) { const v = a() < .5 ? 0 : 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = a() * 13; }
-  nc.putImageData(id, 0, 0); c.drawImage(n, 0, 0, VW, VH);
   return o;
 }
 // lo que se carga una vez: letras, logos, corona y las fotos de los 3 que más sumaron; el resumen ya pintado (fin), que es la imagen. Para el
 // video, además, la beluga y las fotos de todos los que jugaron (la imagen sola no las espera)
 async function cargaFinal(d, video) {
   await Promise.all(['italic 900 100px "Barlow Condensed"', '800 40px Inter', '700 40px Inter', '600 40px Inter'].map((f) => document.fonts.load(f).catch(() => null)));
-  const r = R(d.rival), ids = !video ? d.jug.map((j) => j.id) : [...new Set([...d.jug.map((j) => j.id), ...d.todos.map((j) => j.id), ...seccionesDe(d).flatMap(([, f]) => f.flatMap(([, gt]) => gt.map((p) => p.id)))])];
+  const r = R(d.rival), ids = d.jug.map((j) => j.id);
   const [lb, lr, corona, bel, ...fotos] = await Promise.all([cargaImg(LOGO), r.logo ? cargaImg(r.logo) : null, cargaImg(CORONA), video ? cargaImg(BELUGA_IMG) : null, ...ids.map((id) => (P(id) && P(id).cara ? cargaImg(P(id).cara) : null))]);
   const im = { r, lb, lr, corona, beluga: bel, cara: Object.fromEntries(ids.map((id, i) => [id, fotos[i]])) }, fin = Object.assign(document.createElement('canvas'), { width: VW, height: VH });
   im.pie = `VS ${d.rivalCorto.toUpperCase()} · ${d.fecha.toUpperCase()}`; im.grano = granoVideo();
-  pintaResumen(fin.getContext('2d'), d, im); fin.getContext('2d').drawImage(im.grano, 0, 0); im.fin = fin;
+  pintaCierre(fin.getContext('2d'), d, im); fin.getContext('2d').drawImage(im.grano, 0, 0); im.fin = fin;
+  if (video) im.fotos = d.jug.map((j) => im.cara[j.id] && capaFoto(im.cara[j.id], VW, 1000, { abajo: .45, izq: .12, der: .12 })); // las fotos grandes de los 3, para su pantalla
   return im;
 }
 const cargaVideo = (d) => cargaFinal(d, true);
