@@ -2398,61 +2398,50 @@ function pincel(x, cx, cy, w, h, p, c1, c2, semilla = 5) {
 // un número del marcador que sube de 0 a n
 const cuenta = (n, p) => Math.round(n * frena(p));
 
-// el resultado (3.5 s): noche de mar, como el post que le gustó a Mau (escogido de 3 estilos, 24-nov). Ganando, la beluga brinca del agua por detrás
-// de los logos y del marcador dando la vuelta en el aire (Mau, 24-nov: «me gustó con la vuelta»), cae con salpicadura y entra «VICTORIA»; perdiendo, el mar se calma, la beluga nada despacio bajo el agua y «DERROTA» entra sin brincos
+// el resultado (4.5 s), estilo «Póster» (escogido por Mau de 3 propuestas + la de antes, 25-nov): noche de mar, «FINAL» chico arriba, cada logo sobre su
+// número y el marcador gigante que sube; sin corona ni trazo. Ganando, la beluga, grande, brinca del agua por DETRÁS de logos y marcador dando la vuelta
+// en el aire (Mau, 24-nov: «me gustó con la vuelta»), cae con salpicadura y «VICTORIA» cae con un golpe; perdiendo o empatando, el mar en calma, la beluga
+// nada despacio bajo el agua y la palabra entra sin brincos (raya azul, roja o gris)
 function escenaResultado(x, d, im, t) {
-  const K = kit(x), { txt } = K, gana = d.nos > d.ellos, r = im.r, mar = 1112;
-  let g = x.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#061027'); g.addColorStop(.5, gana ? '#0d2347' : '#0b1c38'); g.addColorStop(1, gana ? '#14386b' : '#10284c'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
-  g = x.createRadialGradient(VW / 2, 640, 0, VW / 2, 640, 700); g.addColorStop(0, gana ? 'rgba(63,143,230,.32)' : 'rgba(63,143,230,.14)'); g.addColorStop(1, 'rgba(63,143,230,0)'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
-  rayos(x, t, gana ? 1 : .55);
-  // arriba: la fecha y «FINAL»
-  const pa = frena(tramo(t, .05, .5));
-  x.save(); x.globalAlpha = pa; txt(`${d.fecha.toUpperCase()} · TEMPORADA 2026`, VW / 2, 122 - (1 - pa) * 20, '800 26px Inter', 'rgba(214,228,247,.8)', 'center', 7); x.restore();
-  const pf = frena(tramo(t, .1, .55));
-  x.save(); x.globalAlpha = pf; x.translate(VW / 2, 292); x.scale(1.25 - .25 * pf, 1.25 - .25 * pf); x.shadowColor = 'rgba(0,0,0,.35)'; x.shadowBlur = 30; txt('FINAL', 0, 0, `italic 900 210px ${DISP}`, '#fff', 'center', 6); x.restore();
-  x.save(); x.globalAlpha = pf; g = x.createLinearGradient(VW / 2 - 260, 0, VW / 2 + 260, 0); g.addColorStop(0, 'rgba(63,143,230,0)'); g.addColorStop(.5, '#3f8fe6'); g.addColorStop(1, 'rgba(63,143,230,0)');
-  x.fillStyle = g; x.beginPath(); x.moveTo(VW / 2 - 260 * pf, 318); x.lineTo(VW / 2 + 260 * pf, 312); x.lineTo(VW / 2 + 250 * pf, 324); x.lineTo(VW / 2 - 250 * pf, 332); x.fill(); x.restore();
+  const K = kit(x), { txt } = K, gana = d.nos > d.ellos, pierde = d.nos < d.ellos, r = im.r, mar = 1100, calma = gana ? 1 : .5;
+  let g = x.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#050d22'); g.addColorStop(.55, gana ? '#0d2347' : '#0b1c38'); g.addColorStop(1, gana ? '#14386b' : '#10284c'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
+  g = x.createRadialGradient(VW / 2, 640, 0, VW / 2, 640, 760); g.addColorStop(0, gana ? 'rgba(63,143,230,.30)' : 'rgba(63,143,230,.12)'); g.addColorStop(1, 'rgba(63,143,230,0)'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
+  rayos(x, t, gana ? .9 : .5);
+  // arriba: «FINAL» y la fecha
+  const pa = frena(tramo(t, .05, .45));
+  x.save(); x.globalAlpha = pa; txt('FINAL', VW / 2, 150 - (1 - pa) * 18, `italic 900 96px ${DISP}`, '#fff', 'center', 12);
+  txt(`${d.fecha.toUpperCase()} · TEMPORADA 2026`, VW / 2, 198, '800 22px Inter', 'rgba(214,228,247,.7)', 'center', 7); x.restore();
   // el mar de atrás
-  const calma = gana ? 1 : .55;
   olas(x, t, mar - 18, 18 * calma, 2.2 * calma, 0, gana ? '#1d4f8f' : '#173d6e', '#0d2347', 'rgba(140,200,255,.45)');
-  // ganando: la beluga salta del agua (entre las dos capas de olas, para que salga del agua)
-  const ts = 1.2, te = 2.55;
-  if (gana && t > ts - .1 && t < te + .2) { const p = (t - ts) / (te - ts), bx = 150 + 790 * p, by = 1190 - 2900 * p * (1 - p), ang = Math.atan2(-2900 * (1 - 2 * p), 790) * .9;
-    beluga(x, im.beluga, bx, by, .74, ang - Math.PI * 2 * suave(tramo(p, .32, .68)), 1); }
-  // logos y vs
-  const pl = rebota(tramo(t, .25, .8)), pr = rebota(tramo(t, .35, .9));
-  K.logo(im.lb, 240 - (1 - pl) * 400, 520, 270); K.logo(im.lr, VW - 240 + (1 - pr) * 400, 520, 270 * Number(r.kv || 1), r.sig);
-  x.save(); x.globalAlpha = tramo(t, .6, .9); txt('VS', VW / 2, 548, `italic 900 84px ${DISP}`, 'rgba(214,228,247,.75)'); x.restore();
-  // el marcador sube de 0 al final
-  const pm = tramo(t, .55, 1.55), am = frena(tramo(t, .5, .75));
-  x.save(); x.globalAlpha = am; x.shadowColor = 'rgba(0,0,0,.4)'; x.shadowBlur = 36; x.shadowOffsetY = 10;
-  const fm = `italic 900 300px ${DISP}`; txt(cuenta(d.nos, pm), VW / 2 - 110, 898, fm, '#fff', 'right'); txt(cuenta(d.ellos, pm), VW / 2 + 110, 898, fm, gana ? 'rgba(214,228,247,.82)' : '#fff', 'left');
-  x.fillStyle = '#fff'; x.beginPath(); x.moveTo(VW / 2 - 34, 790); x.lineTo(VW / 2 + 40, 790); x.lineTo(VW / 2 + 34, 820); x.lineTo(VW / 2 - 40, 820); x.fill(); x.restore();
-  // ganando: el trazo azul alrededor de nuestro número y la corona; perdiendo, una raya roja corta bajo el de ellos (empate: nada)
-  const wn = K.ancho(String(d.nos), fm);
-  if (gana) { const pc = frena(tramo(t, 2.62, 3.05)); if (pc > 0) { x.save(); x.translate(VW / 2 - 110 - wn / 2, 790); x.rotate(-.1); x.beginPath(); x.ellipse(0, 0, wn / 2 + 52, 156, 0, Math.PI * .95, Math.PI * .95 + Math.PI * 2 * pc * .97);
-      x.lineWidth = 16; x.lineCap = 'round'; x.strokeStyle = '#3f8fe6'; x.shadowColor = 'rgba(63,143,230,.8)'; x.shadowBlur = 24; x.stroke(); x.restore(); }
-    const pk = tramo(t, 2.75, 3.15); if (pk > 0 && im.corona) { const cw = 210, ch = cw * im.corona.height / im.corona.width, cy = 680 - (1 - rebota(pk)) * 260;
-      x.save(); x.globalAlpha = lim(pk * 4); x.translate(VW / 2 - 110 - wn / 2 - (wn / 2 + 52) * .7, cy); x.rotate(-.32); x.drawImage(im.corona, -cw / 2, -ch / 2, cw, ch); x.restore(); } }
-  else if (d.nos < d.ellos) { const pc = frena(tramo(t, 1.9, 2.3)), we = K.ancho(String(d.ellos), fm); if (pc > 0) { x.fillStyle = '#ff6b5e'; x.beginPath(); x.roundRect(VW / 2 + 110, 922, we * pc, 12, 6); x.fill(); } }
-  // la franja del resultado
-  const pv = gana ? frena(tramo(t, 2.55, 2.85)) : frena(tramo(t, 1.75, 2.25));
-  const sacude = gana ? Math.sin(t * 90) * 10 * (1 - tramo(t, 2.6, 2.9)) * (t > 2.6 ? 1 : 0) : 0;
-  x.save(); x.translate(sacude, 0);
-  pincel(x, VW / 2, 1010, 620, 104, pv, gana ? '#1d4f8f' : '#26324c', gana ? '#3f8fe6' : '#34425f');
-  if (pv > .5) { x.globalAlpha = tramo(pv, .5, 1); txt(d.res.toUpperCase(), VW / 2, 1040, `italic 900 88px ${DISP}`, gana ? '#fff' : '#e6ecf5', 'center', 14); }
-  x.restore();
+  // ganando: la beluga salta del agua (entre las dos capas de olas, para que salga del agua), por detrás de todo
+  const ts = 1.15, te = 2.5;
+  if (gana && t > ts - .1 && t < te + .2) { const p = (t - ts) / (te - ts), bx = 100 + 880 * p, by = 1270 - 3400 * p * (1 - p), ang = Math.atan2(-3400 * (1 - 2 * p), 880) * .9;
+    beluga(x, im.beluga, bx, by, 1.12, ang - Math.PI * 2 * suave(tramo(p, .3, .7)), 1); }
+  // cada logo sobre su número
+  const XL = 270, XR = 810, pl = rebota(tramo(t, .2, .75)), pr = rebota(tramo(t, .3, .85));
+  x.save(); x.globalAlpha = lim(pl * 3); x.translate(XL, 372); x.scale(.5 + .5 * pl, .5 + .5 * pl); K.logo(im.lb, 0, 0, 230); x.restore();
+  x.save(); x.globalAlpha = lim(pr * 3); x.translate(XR, 372); x.scale(.5 + .5 * pr, .5 + .5 * pr); K.logo(im.lr, 0, 0, 230 * Number(r.kv || 1), r.sig); x.restore();
+  // el marcador gigante sube de 0 al final; el del que no ganó, apagado
+  const pm = tramo(t, .5, 1.45), am = frena(tramo(t, .45, .7)), F = `italic 900 #px ${DISP}`, fn = K.ajusta(String(d.nos), F, 360, 370), fe = K.ajusta(String(d.ellos), F, 360, 370);
+  x.save(); x.globalAlpha = am; x.shadowColor = 'rgba(0,0,0,.45)'; x.shadowBlur = 40; x.shadowOffsetY = 12;
+  txt(cuenta(d.nos, pm), XL, 838, fn, pierde ? 'rgba(214,228,247,.6)' : '#fff'); txt(cuenta(d.ellos, pm), XR, 838, fe, gana ? 'rgba(214,228,247,.5)' : '#fff');
+  x.fillStyle = 'rgba(214,228,247,.7)'; x.beginPath(); x.moveTo(VW / 2 - 30, 700); x.lineTo(VW / 2 + 38, 700); x.lineTo(VW / 2 + 30, 728); x.lineTo(VW / 2 - 38, 728); x.fill(); x.restore();
+  // el resultado: la palabra sola y su raya; ganando cae con un golpe cuando la beluga toca el agua
+  const tv = gana ? te : 1.8, pv = tramo(t, tv, tv + .32);
+  if (pv > 0) { const e = frena(pv), sc = gana ? 1.6 - .6 * e : 1, sac = gana ? Math.sin(t * 80) * 8 * (1 - tramo(t, tv + .1, tv + .45)) : 0;
+    x.save(); x.globalAlpha = lim(pv * 2.5); x.translate(VW / 2 + sac, 950); x.scale(sc, sc); x.shadowColor = 'rgba(0,0,0,.4)'; x.shadowBlur = 24;
+    txt(d.res.toUpperCase(), 0, 42, `italic 900 122px ${DISP}`, gana ? '#fff' : '#c9d6ea', 'center', 18); x.restore();
+    const pb = frena(tramo(t, tv + .2, tv + .55)); x.fillStyle = gana ? '#3f8fe6' : pierde ? '#ff6b5e' : '#8fa3c2'; x.beginPath(); x.roundRect(VW / 2 - 130 * pb, 1018, 260 * pb, 10, 5); x.fill(); }
   // el mar de enfrente
   olas(x, t, mar + 30, 22 * calma, -1.7 * calma, 1.3, gana ? '#14386b' : '#11305a', '#061027', 'rgba(190,225,255,.7)');
-  if (gana) { salpica(x, t, ts + .08, 210, mar + 10, 30, 1, 11); salpica(x, t, te - .08, 900, mar + 10, 34, 1.15, 23);
-    const fl = 1 - tramo(t, te, te + .3); if (t > te && fl > 0) { x.fillStyle = `rgba(255,255,255,${.22 * fl})`; x.fillRect(0, 0, VW, VH); } }
-  else { // perdiendo: la beluga nada despacio bajo el agua, de izquierda a derecha (sin voltearla: el «10» del jersey no sale al revés), y suelta burbujas
-    const bx = -180 + (t - .4) * 330, by = 1250 + Math.sin(t * 2.2) * 10;
-    x.save(); x.beginPath(); x.rect(0, mar + 20, VW, VH); x.clip(); beluga(x, im.beluga, bx, by, .5, Math.sin(t * 2.2 + 1) * .05, .55, false);
-    x.fillStyle = 'rgba(12,32,64,.35)'; x.fillRect(0, mar, VW, VH); x.restore();
-    burbujas(x, t, .8, bx + 130, by - 40, 8, 5); }
+  if (gana) { salpica(x, t, ts + .06, 170, mar + 10, 32, 1.1, 11); salpica(x, t, te - .08, 950, mar + 10, 38, 1.1, 23);
+    const fl = 1 - tramo(t, te, te + .3); if (t > te && fl > 0) { x.fillStyle = `rgba(255,255,255,${.2 * fl})`; x.fillRect(0, 0, VW, VH); } }
+  else { // sin ganar: la beluga nada despacio bajo el agua, de izquierda a derecha (sin voltearla: el «10» del jersey no sale al revés), y suelta burbujas que no salen del agua
+    const bx = -200 + (t - .4) * 330, by = 1250 + Math.sin(t * 2.2) * 10;
+    x.save(); x.beginPath(); x.rect(0, mar + 20, VW, VH); x.clip(); beluga(x, im.beluga, bx, by, .58, Math.sin(t * 2.2 + 1) * .05, .65, false);
+    x.fillStyle = 'rgba(12,32,64,.35)'; x.fillRect(0, mar, VW, VH); burbujas(x, t, .8, bx + 150, by - 46, 8, 5); x.restore(); }
   // abajo: el récord
-  x.save(); x.globalAlpha = tramo(t, 2.9, 3.3); txt(`BELUGAS HDP · RÉCORD ${d.record}`, VW / 2, 1300, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6); x.restore();
+  x.save(); x.globalAlpha = tramo(t, 2.9, 3.3); txt(`BELUGAS HDP · RÉCORD ${d.record}`, VW / 2, 1304, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6); x.restore();
 }
 // los tiempos: el resultado, lo que pasó (ataque y, si hubo algo, defensa), el desfile de todos y el resumen. Cada pantalla se queda un rato después de que
 // acaba su animación, para alcanzar a verla antes de pasar a la que sigue (Mau, 24-nov)
