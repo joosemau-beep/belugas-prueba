@@ -2146,10 +2146,11 @@ function capaFoto(im, w, h, { izq = 0, der = 0, abajo = 0, radio = 0 } = {}) {
   return o;
 }
 
-// ---------- las tarjetas, como las especiales de las cajas de cartas (Mau, 24-nov y 25-nov). La foto arriba, la placa del nombre pareja (no en
-// diagonal, sin gema ni símbolos abajo), «BELUGAS» en vertical y marco de metal cepillado. El color dice el nivel, sin letreros, según los
-// puntos de fantasy del partido: la normal (menos de 9) es sencilla, sola la foto con el nombre abajo, sin marco de metal ni adornos; hielo (9 a
-// 16, azul cielo con copos que caen), oro (16 a 30) y morada (30 o más, con aurora morada por detrás). Solo las dos más altas brillan ----------
+// ---------- las tarjetas, como las especiales de las cajas de cartas (Mau, 24-nov y 25-nov). Diseño «portada» (escogido tras varias rondas): la
+// foto llena la tarjeta y abajo, a la izquierda y sin símbolos, van el nombre, lo que hizo y de qué partido es; marco de metal cepillado. El color
+// dice el nivel, sin letreros, según los puntos de fantasy del partido: la normal (menos de 9) es sencilla, sola la foto con el nombre, sin marco
+// de metal; hielo (9 a 16, azul cielo con copos que caen), oro (16 a 30) y morada (30 o más, con aurora morada por detrás). Solo las dos más
+// altas brillan ----------
 const CATEGORIA = (pts) => (pts >= 30 ? 'morada' : pts >= 16 ? 'oro' : pts >= 9 ? 'hielo' : 'base');
 const CARTA = { base: { marco: ['#eef2f7', '#b9c2cf', '#eef2f7'], metal: ['#e9edf2', '#aab3c0', '#737e8e'], fino: '#d6e4f7', fondo: '#16233f', luz: '125,135,155', la: 0 },
   hielo: { marco: ['#ffffff', '#8fdcff', '#e9f8ff', '#4fbdf2', '#ffffff'], metal: ['#ffffff', '#c8efff', '#74cdf5'], fino: '#bfeaff', fondo: '#0f3558', luz: '80,200,255', la: .62 },
@@ -2161,31 +2162,19 @@ const CW0 = 400, CH0 = 560, CB0 = 22, CB1 = 8; // CB0 = el marco de metal; CB1 =
 function interiorCarta(im, p, est, lineas) {
   const key = `${p.id}|${est}|${lineas.join('|')}`, c = im.cartas = im.cartas || {}; if (c[key]) return c[key];
   const w = CW0, h = CH0, o = Object.assign(document.createElement('canvas'), { width: w, height: h }), x = o.getContext('2d'), K = kit(x), { txt } = K, C = CARTA[est], f = im.cara[p.id];
-  const b = est === 'base' ? CB1 : CB0, L = b, R = w - b, T = b, B = h - b, iw = R - L, ih = B - T, tinta = est === 'morada' ? '#ffffff' : '#0b1838', nombre = lineas[0], dato = lineas[1];
-  const metal = (y0, y1) => { const g = x.createLinearGradient(0, y0, 0, y1); C.metal.forEach((c0, i) => g.addColorStop(i / 2, c0)); return g; };
+  const sencilla = est === 'base', b = sencilla ? CB1 : CB0, L = b, R = w - b, T = b, B = h - b, iw = R - L, ih = B - T, nombre = lineas[0], dato = lineas[1], nx = L + iw * .07;
   x.save(); x.beginPath(); x.roundRect(L, T, iw, ih, w * .035); x.clip();
   let g = x.createLinearGradient(0, T, 0, B); g.addColorStop(0, C.fondo); g.addColorStop(1, '#070f24'); x.fillStyle = g; x.fillRect(L, T, iw, ih);
-  if (est === 'base') { // la normal: sola la foto, a todo lo que da la tarjeta, con el nombre y lo que hizo abajo
-    if (f) { const k = Math.max(iw / f.width, ih / f.height), fw = f.width * k; x.drawImage(f, L + (iw - fw) / 2, T, fw, f.height * k); }
-    else { x.fillStyle = 'rgba(255,255,255,.1)'; x.beginPath(); x.arc(w / 2, T + ih * .36, iw * .28, 0, 7); x.fill(); txt(iniciales(p.nom), w / 2, T + ih * .36 + iw * .09, `800 ${iw * .24}px Inter`); }
-    g = x.createLinearGradient(0, T + ih * .56, 0, B); g.addColorStop(0, 'rgba(7,12,30,0)'); g.addColorStop(.6, 'rgba(7,12,30,.85)'); g.addColorStop(1, 'rgba(7,12,30,.94)'); x.fillStyle = g; x.fillRect(L, T + ih * .56, iw, ih);
-    txt(nombre, w / 2, B - ih * (dato ? .135 : .06), K.ajusta(nombre, `italic 900 #px ${DISP}`, iw * .88, Math.round(ih * .12), 1), '#ffffff', 'center', 1);
-    if (dato) txt(dato, w / 2, B - ih * .045, K.ajusta(dato, `italic 900 #px ${DISP}`, iw * .88, Math.round(ih * .082), 1), C.fino, 'center', 1);
-    x.restore(); return c[key] = o; }
-  // la foto, con el corte parejo abajo; la luz del color de su nivel alrededor de la cara y «BELUGAS» en vertical
-  const yL = T + ih * .685, yR = yL, ph = ih * .125, ang = 0, my = yL;
-  x.save(); x.beginPath(); x.moveTo(L, T); x.lineTo(R, T); x.lineTo(R, yR); x.lineTo(L, yL); x.closePath(); x.clip();
-  if (f) { const k = Math.max(iw / f.width, (yL - T) / f.height), fw = f.width * k; x.drawImage(f, L + (iw - fw) / 2, T, fw, f.height * k); }
-  else { x.fillStyle = 'rgba(255,255,255,.1)'; x.beginPath(); x.arc(w / 2, T + ih * .3, iw * .28, 0, 7); x.fill(); txt(iniciales(p.nom), w / 2, T + ih * .3 + iw * .09, `800 ${iw * .24}px Inter`); }
-  g = x.createRadialGradient(w / 2, T + ih * .27, w * .28, w / 2, T + ih * .27, w * .85); g.addColorStop(0, `rgba(${C.luz},0)`); g.addColorStop(1, `rgba(${C.luz},${C.la})`); x.fillStyle = g; x.fillRect(L, T, iw, ih);
-  x.save(); x.translate(L + w * .068, T + ih * .31); x.rotate(-Math.PI / 2); txt('BELUGAS', 0, 0, `800 ${Math.round(w * .06)}px Inter`, 'rgba(255,255,255,.6)', 'center', w * .022); x.restore(); x.restore();
-  if (im.lb) x.drawImage(im.lb, R - w * .2, T + w * .03, w * .165, w * .165 * im.lb.height / im.lb.width);
-  // la placa del nombre como le gusta a Mau (25-nov): pareja, más angosta abajo, sin gema ni símbolos; abajo, lo que hizo y de qué partido es
-  x.fillStyle = metal(my - ph / 2, my + ph / 2); x.beginPath(); x.moveTo(L, my - ph / 2); x.lineTo(R, my - ph / 2); x.lineTo(R - ph * .5, my + ph / 2); x.lineTo(L + ph * .5, my + ph / 2); x.closePath(); x.fill();
-  if (est === 'morada') { x.strokeStyle = 'rgba(155,107,255,.9)'; x.lineWidth = 2; x.stroke(); }
-  txt(nombre, w / 2, my + ph * .29, K.ajusta(nombre, `italic 900 #px ${DISP}`, iw - ph * 1.7, Math.round(ph * .84), 1), tinta, 'center', 1);
-  if (dato) txt(dato, w / 2, my + ph / 2 + ih * .115, K.ajusta(dato, `italic 900 #px ${DISP}`, iw * .88, Math.round(ih * .092), 1), C.fino, 'center', 1);
-  txt(im.pie || 'BELUGAS HDP · 2026', w / 2, B - ih * .026, `800 ${Math.round(w * .04)}px Inter`, 'rgba(214,228,247,.65)', 'center', 3);
+  // la foto llena la tarjeta, con la luz del color de su nivel alrededor de la cara
+  if (f) { const k = Math.max(iw / f.width, ih / f.height), fw = f.width * k; x.drawImage(f, L + (iw - fw) / 2, T, fw, f.height * k); }
+  else { x.fillStyle = 'rgba(255,255,255,.1)'; x.beginPath(); x.arc(w / 2, T + ih * .36, iw * .28, 0, 7); x.fill(); txt(iniciales(p.nom), w / 2, T + ih * .36 + iw * .09, `800 ${iw * .24}px Inter`); }
+  if (C.la) { g = x.createRadialGradient(w / 2, T + ih * .36, w * .3, w / 2, T + ih * .36, w * .95); g.addColorStop(0, `rgba(${C.luz},0)`); g.addColorStop(1, `rgba(${C.luz},${C.la})`); x.fillStyle = g; x.fillRect(L, T, iw, ih); }
+  g = x.createLinearGradient(0, T + ih * .55, 0, B); g.addColorStop(0, 'rgba(7,12,30,0)'); g.addColorStop(.55, 'rgba(7,12,30,.88)'); g.addColorStop(1, 'rgba(7,12,30,.96)'); x.fillStyle = g; x.fillRect(L, T + ih * .55, iw, ih);
+  // abajo, limpio y a la izquierda: una rayita del color del nivel, el nombre, lo que hizo y de qué partido es (la normal, solo nombre y dato)
+  if (!sencilla) { x.fillStyle = `rgb(${C.luz})`; x.fillRect(nx, B - ih * .262, iw * .16, 5); }
+  txt(nombre, nx, B - ih * (sencilla ? (dato ? .125 : .06) : .15), K.ajusta(nombre, `italic 900 #px ${DISP}`, iw * .86, Math.round(ih * .13), 1), '#ffffff', 'left', 1);
+  if (dato) txt(dato, nx, B - ih * (sencilla ? .045 : .075), K.ajusta(dato, `italic 900 #px ${DISP}`, iw * .86, Math.round(ih * .078), 1), C.fino, 'left', 1);
+  if (!sencilla) txt(im.pie || 'BELUGAS HDP · 2026', nx, B - ih * .028, `800 ${Math.round(w * .034)}px Inter`, 'rgba(214,228,247,.65)', 'left', 2.5);
   x.restore();
   return c[key] = o;
 }
