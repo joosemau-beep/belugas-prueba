@@ -2237,7 +2237,7 @@ test('iPad parado: una columna (campo, botones y la lista); las jugadas paso a p
   await pg.context().close();
 });
 
-test('«Compartir» hace el video del partido (resultado, los 3 que más sumaron y al final quién hizo los TD) y lo enseña antes de mandarlo; la imagen del final sale desde la misma hoja y es la de respaldo sin grabadora', async () => {
+test('«Compartir» hace el video del partido (la beluga, el ataque y la defensa con tarjetas y el resumen con todos los que jugaron) y lo enseña antes de mandarlo; la imagen del final sale desde la misma hoja y es la de respaldo sin grabadora', async () => {
   const pg = await telefono(srv.url);
   // cada cuadro se puede pintar en cualquier segundo, para los partidos de solo marcador (los de antes), un empate y los marcados
   const cuadros = () => pg.evaluate(async () => { const c = Object.assign(document.createElement('canvas'), { width: VW, height: VH }), x = c.getContext('2d'), o = [];
@@ -2245,17 +2245,17 @@ test('«Compartir» hace el video del partido (resultado, los 3 que más sumaron
       for (const t of [0, 1.3, 2.7, 3.7, 5.5, 8, 9.5, 20]) { dibujaCuadro(x, d, im, t); dibujaCuadro(x, e, im, t); }
       // al final, el ataque cuenta todos los TD (sin pick 6) y todos los pases de TD
       const suma = (k) => ((d.ataque.find(([n]) => n === k) || [, []])[1]).reduce((a, p) => a + p.n, 0), tds = g.tds || [];
-      o.push([g.id, d.jug.length, durVideo(d), suma('TD') === tds.filter(([, c]) => c).length && suma('TD LANZADOS') === tds.filter(([, c, qb]) => c === 'pase' && qb).length]); }
+      o.push([g.id, seccionesDe(d).length, durVideo(d), suma('TD') === tds.filter(([, c]) => c).length && suma('TD LANZADOS') === tds.filter(([, c, qb]) => c === 'pase' && qb).length]); }
     return o; });
   const solos = await cuadros();
-  // dura 3.5 s el resultado + 1.4 por jugador + 0.45 de la ola + 3.4 el final (ataque y defensa); los de solo marcador (aquí, no en la de prueba publicada), 7.35 s
-  const dura = ([, n, dur, ok]) => Math.abs(dur - (7.35 + n * 1.4)) < .001 && ok;
+  // dura 3.5 s el resultado + 2.7 por pantalla de lo que pasó (ataque y, si hubo algo, defensa) + 3.6 el resumen con todos; solo marcador (aquí, no en la de prueba publicada), 7.1 s
+  const dura = ([, n, dur, ok]) => Math.abs(dur - (7.1 + n * 2.7)) < .001 && ok;
   assert.ok(solos.every(dura) && (process.env.URL || solos.every(([, n]) => n === 0)), JSON.stringify(solos));
   await sembrar(pg, true);
   const todos = await cuadros();
   assert.ok(todos.every(dura), JSON.stringify(todos));
-  // Lobos 33–12: ~11.5 s con 3 jugadores
-  const lob = todos.find(([id]) => id === 'g4'); assert.ok(dura(lob) && lob[1] === 3, JSON.stringify(lob));
+  // Lobos 33–12: ~12.5 s
+  const lob = todos.find(([id]) => id === 'g4'); assert.ok(dura(lob) && lob[1] === 2, JSON.stringify(lob)); // Lobos: ataque y defensa
   assert.deepEqual(pg.errores, []);
   // el menú de compartir del teléfono, de mentiras: apunta lo que se le manda
   await pg.evaluate(() => { window.__mandado = []; navigator.canShare = () => true; navigator.share = async (o) => { window.__mandado.push((o.files || []).map((f) => [f.name, f.type])); }; });

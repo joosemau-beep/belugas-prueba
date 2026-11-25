@@ -2097,7 +2097,7 @@ function datosFinal(g) {
   const top = g.solo ? [] : Object.keys(g.st).filter((id) => P(id) && puntosDe(g.st[id]) > 0).sort((a, b) => puntosDe(g.st[b]) - puntosDe(g.st[a])).slice(0, 3);
   // lo que hizo puntos (ataque) y lo destacado de la defensa: quién y cuántos (el pick 6 va en defensa; en conversiones, solo quién; «más
   // banderas» solo si alguien quitó 2 o más, y como mucho 2 empatados)
-  const tds = g.tds || [], st = g.solo ? {} : g.st, de = (k) => Object.keys(st).filter((id) => P(id) && st[id][k] > 0).map((id) => ({ id, nom: sinEsc(P(id).nombre), n: st[id][k] })).sort((a, b) => b.n - a.n), band = de('band');
+  const tds = g.tds || [], st = g.solo ? {} : g.st || {}, de = (k) => Object.keys(st).filter((id) => P(id) && st[id][k] > 0).map((id) => ({ id, nom: sinEsc(P(id).nombre), n: st[id][k] })).sort((a, b) => b.n - a.n), band = de('band');
   let num = [];
   if (!g.solo && g.partido) { const c = cuentas([g.partido]), bal = c.rob - c.perd;
     num = [['Series con TD', `${c.seriesTD}/${c.seriesO}`], ['Series paradas', `${c.fren}/${c.seriesD}`], ['El balón', bal > 0 ? '+' + bal : bal < 0 ? '−' + -bal : '0'], ['Completos', `${c.comp}/${c.att}`]]; }
@@ -2107,6 +2107,9 @@ function datosFinal(g) {
       ['CONVERSIONES', de('conv').map((p) => ({ ...p, n: 1 }))]].filter(([, l]) => l.length),
     defensa: [['MÁS BANDERAS', band.length && band[0].n > 1 ? band.filter((p) => p.n === band[0].n).slice(0, 2).map((p) => ({ ...p, siempre: true })) : []], ['INTERCEPCIONES', de('intn')], ['PICK 6', quienes(tds.filter(([, como]) => !como).map(([id]) => id))],
       ['EXTRA REGRESADO', de('regx')], ['SAFETY', de('saf')]].filter(([, l]) => l.length),
+    pts: Object.fromEntries(Object.keys(st).filter((id) => P(id)).map((id) => [id, puntosDe(st[id])])), // para la categoría de cada tarjeta
+    // todos los que jugaron (los que vinieron, o los que hicieron algo), del que más sumó al que menos: el resumen del final
+    todos: ((g.partido && g.partido.van && g.partido.van.length) ? g.partido.van : Object.keys(st)).filter((id) => P(id)).map((id) => ({ id, nom: sinEsc(P(id).nombre), pts: st[id] ? puntosDe(st[id]) : 0 })).sort((a, b) => b.pts - a.pts),
     jug: top.map((id) => { const p = P(id), x = g.st[id]; return { id, nom: sinEsc(p.nombre), cara: p.cara, pts: puntosDe(x), tira: statsJuego(x, qb === id, g, id).tira.map(([k, v]) => [k, sinEsc(String(v))]) }; }) };
 }
 const textoFinal = (d) => [`Belugas ${d.nos} – ${d.ellos} ${d.rivalNom}`, `${d.res} · ${d.fecha}`, ...d.anot.map(([t, s]) => t + (s ? ` (${s.charAt(0).toLowerCase() + s.slice(1)})` : '')), `Récord de la temporada: ${d.record}`].join('\n');
@@ -2143,46 +2146,141 @@ function capaFoto(im, w, h, { izq = 0, der = 0, abajo = 0, radio = 0 } = {}) {
   return o;
 }
 
-// ---------- el final: el último cuadro del video y la imagen de respaldo ----------
-// Mau, 24-nov: «lo que se tiene que ver al final es quién hizo los TD», «que no se vean saturados: solo TD y TD lanzados», «y que se mueva a la
-// parte de defensa si hubo algo destacado». Noche de mar: arriba FINAL, los logos con el marcador y la franja del resultado; abajo ATAQUE (lo que
-// hizo puntos: TD, TD lanzados, conversiones) y, si hubo algo, DEFENSA (más banderas, intercepciones, pick 6, punto extra regresado, safety): un
-// renglón por cosa, quién y cuántos, sin fotos. En el video el ataque entra solo, al centro, y luego sube para que entre la defensa (u = segundos
-// desde que entra); quieto, con los dos, es la imagen
-const FIN_SUBE = [1.6, 2.2], FIN_ANIMA = 3.1;
-function pintaFinal(x, d, im, u = 99) {
-  const K = kit(x), { txt } = K, r = im.r, gana = d.nos > d.ellos, AZ = '#5aaeff';
+// ---------- las tarjetas, como las especiales de las cajas de cartas (Mau, 24-nov): el color dice la categoría, sin letreros, según los puntos de
+// fantasy del partido: plata (menos de 9), hielo (9 a 16, platino con cristales y destellos), oro (16 a 30, brillo que corre y destellos) y aurora
+// (30 o más, cortinas de aurora boreal por detrás, discretas). Foto, placa con el nombre, lo que hizo y un destello que la barre ----------
+const CATEGORIA = (pts) => (pts >= 30 ? 'aurora' : pts >= 16 ? 'oro' : pts >= 9 ? 'hielo' : 'base');
+const CARTA = { base: { tinte: ['#ffffff', '#c6cfda', '#9fb3cc'], metal: ['#ffffff', '#dfe6ef', '#9fb3cc'], fino: '#d6e4f7', fondo: '#1f2c48' },
+  hielo: { tinte: ['#ffffff', '#bfe6ff', '#8fc6e8'], metal: ['#ffffff', '#d8f1ff', '#9fc4e0'], fino: '#d8f4ff', fondo: '#1a3558' },
+  oro: { tinte: ['#ffe38c', '#f6b73c', '#dd8d16'], metal: ['#fff3c4', '#f6c453', '#b8860b'], fino: '#ffd36b', fondo: '#3a2a0a' },
+  aurora: { tinte: ['#5effc8', '#3fa9ff', '#a77bff'], metal: ['#c8ffee', '#5effc8', '#3fa9ff'], fino: '#9fffe0', fondo: '#0a2236' } };
+// el fondo con la foto, hecho una vez por jugador, tamaño y categoría (se guarda en im)
+function fondoCarta(im, id, nom, w, h, est) {
+  const k = `${id}|${w}|${est}`, c = im.cartas = im.cartas || {}; if (c[k]) return c[k];
+  const o = Object.assign(document.createElement('canvas'), { width: w, height: h }), x = o.getContext('2d'), C = CARTA[est], fh = h * .64;
+  let g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, C.fondo); g.addColorStop(1, '#070f24'); x.fillStyle = g;
+  x.beginPath(); x.roundRect(0, 0, w, h, w * .05); x.fill(); x.clip();
+  g = x.createLinearGradient(0, 0, w, h); C.tinte.forEach((col, i) => g.addColorStop(i / 2, col)); x.globalAlpha = .14; x.fillStyle = g; x.fillRect(0, 0, w, h); x.globalAlpha = 1;
+  const f = im.cara[id];
+  if (f) x.drawImage(capaFoto(f, w, fh, { abajo: .32 }), 0, 0);
+  else { x.fillStyle = 'rgba(255,255,255,.12)'; x.beginPath(); x.arc(w / 2, fh * .5, w * .3, 0, 7); x.fill(); kit(x).txt(iniciales(nom), w / 2, fh * .5 + w * .1, `800 ${w * .26}px Inter`); }
+  return c[k] = o;
+}
+// una tarjeta con el centro en (0, 0) del lienzo ya movido, w de ancho (alto 1.4 w); lineas = [nombre, lo que hizo]; t mueve brillos y aurora;
+// p.corona = la del jugador del partido
+function carta(x, im, p, cx, cy, w, est, t, lineas) {
+  const K = kit(x), { txt } = K, C = CARTA[est], h = w * 1.4, R = w * .07, b = Math.round(w * .06), rr = (m, r = R - m * .6) => { x.beginPath(); x.roundRect(-w / 2 + m, -h / 2 + m, w - 2 * m, h - 2 * m, Math.max(4, r)); };
+  const chispas = (sem, n, col, brillo) => { const a = azar(sem); for (let i = 0; i < n; i++) { const ang = a() * Math.PI * 2, ph = a() * 6, s = w * .04 * Math.max(0, Math.sin(t * 3 + ph)); if (s < 2) continue;
+    x.save(); x.translate(Math.max(-w / 2 + b / 2, Math.min(w / 2 - b / 2, (w / 2) * 1.3 * Math.cos(ang))), Math.max(-h / 2 + b / 2, Math.min(h / 2 - b / 2, (h / 2) * 1.3 * Math.sin(ang)))); x.fillStyle = col; x.shadowColor = brillo; x.shadowBlur = 12;
+    x.beginPath(); x.moveTo(0, -s); x.lineTo(s * .22, 0); x.lineTo(0, s); x.lineTo(-s * .22, 0); x.closePath(); x.moveTo(-s, 0); x.lineTo(0, s * .22); x.lineTo(s, 0); x.lineTo(0, -s * .22); x.closePath(); x.fill(); x.restore(); } };
+  x.save(); x.translate(cx, cy);
+  let g;
+  if (est === 'aurora') { // cortinas de aurora por detrás, discretas
+    x.save(); x.globalCompositeOperation = 'lighter'; const cols = ['94,255,200', '63,169,255', '167,123,255'];
+    for (let k = 0; k < 5; k++) { const cx0 = -w * .6 + ((k * 97 + t * 35) % (w * 1.2)), ww = w * .16 + (k % 3) * w * .07, top = -h * .62, bot = h * .05; g = x.createLinearGradient(0, top, 0, bot); g.addColorStop(0, `rgba(${cols[k % 3]},0)`); g.addColorStop(.5, `rgba(${cols[k % 3]},.2)`); g.addColorStop(1, `rgba(${cols[k % 3]},0)`);
+      x.fillStyle = g; x.beginPath(); x.moveTo(cx0, top); for (let i = 0; i <= 10; i++) x.lineTo(cx0 + Math.sin(i * .6 + t * 1.6 + k) * w * .06, top + i * (bot - top) / 10); x.lineTo(cx0 + ww, bot); for (let i = 10; i >= 0; i--) x.lineTo(cx0 + ww + Math.sin(i * .6 + t * 1.6 + k + 1.3) * w * .06, top + i * (bot - top) / 10); x.closePath(); x.fill(); }
+    x.restore(); }
+  // el marco
+  x.save(); x.shadowColor = est === 'aurora' ? `rgba(94,255,200,${.35 + .1 * Math.sin(t * 2)})` : 'rgba(0,0,0,.55)'; x.shadowBlur = est === 'aurora' ? w * .1 : w * .1; x.shadowOffsetY = est === 'aurora' ? 0 : w * .04;
+  if (est === 'oro') { g = x.createConicGradient ? x.createConicGradient(t * 1.2, 0, 0) : x.createLinearGradient(-w / 2, 0, w / 2, 0); ['#fff3c4', '#f6b73c', '#8a5a0c', '#ffe38c', '#d99a1c', '#fff3c4'].forEach((c, i) => g.addColorStop(i / 5, c)); }
+  else if (est === 'hielo') { g = x.createConicGradient ? x.createConicGradient(t * .6, 0, 0) : x.createLinearGradient(-w / 2, 0, w / 2, 0); ['#ffffff', '#bfe6ff', '#e9f8ff', '#8fc6e8', '#ffffff'].forEach((c, i) => g.addColorStop(i / 4, c)); }
+  else if (est === 'aurora') { g = x.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, '#0a2236'); g.addColorStop(1, '#050c16'); }
+  else { g = x.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2); g.addColorStop(0, '#ffffff'); g.addColorStop(.4, '#9fb3cc'); g.addColorStop(.7, '#eef2f7'); g.addColorStop(1, '#6f819b'); }
+  x.fillStyle = g; rr(0, R); x.fill(); x.restore();
+  if (est === 'base') { rr(w * .011); g = x.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, '#1b2b4d'); g.addColorStop(1, '#0b1530'); x.fillStyle = g; x.fill(); rr(b - 4); x.lineWidth = 3; x.strokeStyle = '#c6cfda'; x.stroke(); }
+  if (est === 'oro') { rr(b - 6); x.lineWidth = 4; x.strokeStyle = '#6b4507'; x.stroke(); rr(b - 1); x.lineWidth = 2; x.strokeStyle = '#fff3c4'; x.stroke(); }
+  if (est === 'hielo') { x.save(); rr(0, R); x.clip(); const a = azar(9); for (let i = 0; i < 60; i++) { const px = (a() - .5) * w, py = (a() - .5) * h, s = w * (.03 + a() * .08), al = .15 + .25 * a(); x.beginPath(); x.moveTo(px, py - s); x.lineTo(px + s * .6, py + s * .4); x.lineTo(px - s * .5, py + s * .5); x.closePath(); x.fillStyle = `rgba(255,255,255,${al})`; x.fill(); } x.restore(); }
+  if (est === 'aurora') { x.save(); rr(0, R); x.clip(); x.globalCompositeOperation = 'lighter'; const cols = ['94,255,200', '63,169,255', '167,123,255'];
+    for (let k = 0; k < 5; k++) { const cx0 = -w / 2 + ((k * 97 + t * 50) % (w + 120)) - 60, ww = w * .2; g = x.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, `rgba(${cols[k % 3]},0)`); g.addColorStop(.35, `rgba(${cols[k % 3]},.35)`); g.addColorStop(1, `rgba(${cols[k % 3]},0)`);
+      x.fillStyle = g; x.fillRect(cx0, -h / 2, ww, h); }
+    x.restore(); rr(5); x.lineWidth = 3; x.strokeStyle = 'rgba(160,255,220,.85)'; x.stroke(); rr(b - 4); x.lineWidth = 2; x.strokeStyle = 'rgba(200,240,255,.6)'; x.stroke(); }
+  x.drawImage(fondoCarta(im, p.id, p.nom, w - 2 * b, h - 2 * b, est), -w / 2 + b, -h / 2 + b);
+  // la placa del nombre, lo que hizo y el año
+  const py = h / 2 - b - h * .3, ph = h * .12; g = x.createLinearGradient(0, py, 0, py + ph); C.metal.forEach((c0, i) => g.addColorStop(i / 2, c0));
+  x.fillStyle = g; x.beginPath(); x.moveTo(-w / 2 + b, py); x.lineTo(w / 2 - b, py); x.lineTo(w / 2 - b - ph * .5, py + ph); x.lineTo(-w / 2 + b + ph * .5, py + ph); x.closePath(); x.fill();
+  txt(K.cabe(lineas[0], `italic 900 ${ph * .82}px ${DISP}`, w - 3 * b - ph), 0, py + ph * .8, `italic 900 ${ph * .82}px ${DISP}`, '#0b1838', 'center', 1);
+  if (lineas[1]) txt(lineas[1], 0, py + ph + h * .085, K.ajusta(lineas[1], `italic 900 #px ${DISP}`, w - 3 * b, Math.round(h * .072), 1), C.fino, 'center', 1);
+  txt('BELUGAS HDP · 2026', 0, h / 2 - b - h * .035, `800 ${Math.max(9, Math.round(w * .036))}px Inter`, 'rgba(214,228,247,.55)', 'center', 3);
+  if (im.lb) x.drawImage(im.lb, -w / 2 + b + 8, -h / 2 + b + 8, w * .17, w * .17 * im.lb.height / im.lb.width);
+  if (est === 'base' || est === 'oro') { const met = est === 'base' ? '#c6cfda' : '#8a5a0c', e = w * .12; x.strokeStyle = met; x.lineWidth = Math.max(2, w * .015);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => { const ox = sx * (w / 2 - b + 2), oy = sy * (h / 2 - b + 2); x.beginPath(); x.moveTo(ox - sx * e, oy); x.lineTo(ox, oy); x.lineTo(ox, oy - sy * e); x.stroke();
+      x.save(); x.translate(ox - sx * w * .042, oy - sy * w * .042); x.rotate(Math.PI / 4); x.fillStyle = est === 'base' ? '#eef2f7' : '#ffe38c'; const q = w * .018; x.fillRect(-q, -q, 2 * q, 2 * q); x.restore(); }); }
+  if (est === 'oro') chispas(11, 8, '#fffbe8', '#ffe38c');
+  if (est === 'hielo') chispas(4, 7, '#ffffff', '#bfe6ff');
+  if (p.corona && im.corona) { const cw = w * .3, ch = cw * im.corona.height / im.corona.width; x.drawImage(im.corona, -cw / 2, -h / 2 - ch * .55, cw, ch); }
+  // el destello que barre la tarjeta cada rato
+  const s = (t * .55 + (String(p.id).length % 5) * .13) % 1.6; if (s < 1) { x.save(); rr(0, R); x.clip(); x.globalCompositeOperation = 'lighter';
+    const sx = -w + 2 * w * s; g = x.createLinearGradient(sx - w * .25, -h / 2, sx + w * .25, h / 2); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(-w / 2, -h / 2, w, h); x.restore(); }
+  x.restore();
+}
+// ---------- lo que pasó en el partido: ATAQUE (azul) y luego DEFENSA (oro), con tarjetas (Mau, 24-nov: «primero uno de ataque y luego uno de
+// defensa, y métele diseño»; escogidas las tarjetas) ----------
+// la gente de una sección, cada quien con lo que hizo (lo más importante primero)
+const PESO_J = { TD: 10, 'PICK 6': 12, 'EXTRA REGRESADO': 9, 'TD LANZADOS': 8, INTERCEPCIONES: 7, SAFETY: 7, 'MÁS BANDERAS': 6, CONVERSIONES: 2 };
+const DICE_J = { TD: 'TD', 'TD LANZADOS': 'TD LANZADOS', CONVERSIONES: 'CONV.', 'PICK 6': 'PICK 6', 'EXTRA REGRESADO': 'EXTRA REGRESADO', INTERCEPCIONES: 'INT', 'MÁS BANDERAS': 'BANDERAS', SAFETY: 'SAFETY' };
+function genteDe(filas) {
+  const m = {}; filas.forEach(([lab, gt]) => gt.forEach((p) => { const q = m[p.id] = m[p.id] || { id: p.id, nom: p.nom, stats: [], peso: 0 };
+    q.stats.push(lab === 'CONVERSIONES' || (lab === 'PICK 6' && p.n === 1) ? DICE_J[lab] : `${p.n} ${DICE_J[lab]}`); q.peso += (PESO_J[lab] || 1) * p.n; }));
+  return Object.values(m).sort((a, b) => b.peso - a.peso);
+}
+const seccionesDe = (d) => [['ATAQUE', d.ataque], ['DEFENSA', d.defensa]].filter(([, f]) => f.length);
+// el fondo de cada pantalla: noche con su color, rayos inclinados que corren, la palabra gigante calada y el marcador arriba en una franja
+function fondoSeccion(x, d, im, tit, u, sub) {
+  const K = kit(x), { txt } = K, r = im.r, at = tit === 'ATAQUE', AC = at ? '#5aaeff' : '#f6c453', AC2 = at ? '#1d4f8f' : '#a8740f', t = Math.min(u, 8);
+  let g = x.createLinearGradient(0, 0, VW, VH); g.addColorStop(0, '#050c20'); g.addColorStop(.6, at ? '#0d2347' : '#1a1a2e'); g.addColorStop(1, at ? '#163f78' : '#3a2a0a'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
+  x.save(); x.globalCompositeOperation = 'lighter';
+  for (let k = 0; k < 4; k++) { const bx = ((k * 340 + t * 90) % 1700) - 300; g = x.createLinearGradient(bx, 0, bx + 160, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.5, at ? 'rgba(90,174,255,.10)' : 'rgba(246,196,83,.09)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.beginPath(); x.moveTo(bx, 0); x.lineTo(bx + 160, 0); x.lineTo(bx - 240, VH); x.lineTo(bx - 400, VH); x.fill(); }
+  x.restore();
+  x.save(); x.translate(VW / 2, 820); x.rotate(-.12); x.font = `italic 900 330px ${DISP}`; x.textAlign = 'center'; x.lineWidth = 3; x.strokeStyle = at ? 'rgba(90,174,255,.16)' : 'rgba(246,196,83,.16)';
+  for (let k = -1; k <= 1; k++) x.strokeText(tit, -t * 30 + k * 40, k * 300); x.restore();
+  const ph = frena(tramo(u, 0, .35)); x.save(); x.globalAlpha = ph;
+  x.fillStyle = 'rgba(255,255,255,.07)'; x.beginPath(); x.roundRect(60, 48, VW - 120, 112, 56); x.fill();
+  K.logo(im.lb, 130, 104, 86); K.logo(im.lr, VW - 130, 104, 86 * Number(r.kv || 1), r.sig);
+  txt(`${d.nos}–${d.ellos}`, VW / 2, 132, `italic 900 88px ${DISP}`, '#fff'); txt(d.res.toUpperCase(), 230, 116, '800 22px Inter', d.nos > d.ellos ? '#5aaeff' : '#ff8a80', 'left', 5); txt(d.fecha.toUpperCase(), VW - 230, 116, '800 22px Inter', 'rgba(214,228,247,.7)', 'right', 5);
+  x.restore();
+  const pt = rebota(tramo(u, .1, .5)); x.save(); x.translate(VW / 2, 300); x.scale(.6 + .4 * pt, .6 + .4 * pt); x.globalAlpha = lim(pt * 2);
+  pincel(x, 0, -10, 560, 30, frena(tramo(u, .3, .6)), AC2, AC); x.shadowColor = 'rgba(0,0,0,.5)'; x.shadowBlur = 30; txt(tit, 0, 40, `italic 900 170px ${DISP}`, '#fff', 'center', 8); x.restore();
+  txt(sub, VW / 2, 384, '800 24px Inter', AC, 'center', 7);
+}
+// una pantalla: cada jugador en su tarjeta (con la categoría de su partido) que se voltea al entrar, un poco chuecas; u = segundos desde que entra
+function pintaSeccion(x, d, im, [tit, filas], u) {
+  const at = tit === 'ATAQUE', t = Math.min(u, 8);
+  fondoSeccion(x, d, im, tit, u, at ? 'LOS QUE HICIERON PUNTOS' : 'LO MEJOR DE LA DEFENSA');
+  const l = genteDe(filas).slice(0, 6), dosF = l.length > 3, CW = dosF ? 258 : l.length > 2 ? 300 : 330, CH = CW * 1.4, gap = 26, alto = (dosF ? 2 : 1) * CH + (dosF ? gap : 0), ytop = 440 + Math.max(0, (1250 - 440 - alto) / 2), mitad = Math.ceil(l.length / 2);
+  l.forEach((p, k) => { const fila = dosF && k >= mitad ? 1 : 0, n = dosF ? (fila ? l.length - mitad : mitad) : l.length, kk = fila ? k - mitad : k, cx = VW / 2 - (n * CW + (n - 1) * gap) / 2 + kk * (CW + gap) + CW / 2, cy = ytop + fila * (CH + gap) + CH / 2;
+    const e = tramo(u, .35 + k * .16, .8 + k * .16); if (e <= 0) return; const tono = CATEGORIA(d.pts[p.id] || 0);
+    x.save(); x.translate(cx, cy + Math.sin(t * 2 + k) * 4); x.rotate((k % 2 ? 1 : -1) * .04); x.scale(e < .5 ? .02 + e * 1.96 : 1, 1);
+    carta(x, im, p, 0, 0, CW, tono, t, [p.nom.toUpperCase(), p.stats.slice(0, 2).join(' · ')]); x.restore(); });
+}
+// ---------- el resumen: el resultado, los 3 que más sumaron grandes y abajo todos los que jugaron con su tarjeta (Mau, 24-nov); la última pantalla
+// y la imagen de respaldo. u = segundos desde que entra; quieto desde 2.6 s (así el último cuadro es la imagen) ----------
+function pintaResumen(x, d, im, u = 99) {
+  const K = kit(x), { txt } = K, r = im.r, gana = d.nos > d.ellos, t = Math.min(u, 2.6);
   let g = x.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#061027'); g.addColorStop(.55, '#0d2347'); g.addColorStop(1, '#14386b'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
-  g = x.createRadialGradient(VW / 2, 330, 0, VW / 2, 330, 640); g.addColorStop(0, 'rgba(63,143,230,.3)'); g.addColorStop(1, 'rgba(63,143,230,0)'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
-  rayos(x, 0, .6);
-  txt(`${d.fecha.toUpperCase()} · TEMPORADA 2026`, VW / 2, 92, '800 24px Inter', 'rgba(214,228,247,.8)', 'center', 7);
-  x.save(); x.shadowColor = 'rgba(0,0,0,.35)'; x.shadowBlur = 24; txt('FINAL', VW / 2, 214, `italic 900 132px ${DISP}`, '#fff', 'center', 4); x.restore();
-  K.logo(im.lb, 170, 372, 190); K.logo(im.lr, VW - 170, 372, 190 * Number(r.kv || 1), r.sig);
-  const fm = `italic 900 210px ${DISP}`;
-  x.save(); x.shadowColor = 'rgba(0,0,0,.4)'; x.shadowBlur = 30; x.shadowOffsetY = 8;
-  txt(d.nos, VW / 2 - 46, 448, fm, '#fff', 'right'); txt(d.ellos, VW / 2 + 46, 448, fm, gana ? 'rgba(214,228,247,.8)' : '#fff', 'left');
-  x.fillStyle = '#fff'; x.beginPath(); x.moveTo(VW / 2 - 28, 372); x.lineTo(VW / 2 + 32, 372); x.lineTo(VW / 2 + 28, 394); x.lineTo(VW / 2 - 32, 394); x.fill(); x.restore();
-  if (gana && im.corona) { const cw = 120, ch = cw * im.corona.height / im.corona.width; x.save(); x.translate(VW / 2 - 46 - K.ancho(String(d.nos), fm) - 10, 296); x.rotate(-.3); x.drawImage(im.corona, -cw / 2, -ch / 2, cw, ch); x.restore(); }
-  pincel(x, VW / 2, 528, 470, 80, 1, gana ? '#1d4f8f' : '#26324c', gana ? '#3f8fe6' : '#34425f');
-  txt(d.res.toUpperCase(), VW / 2, 553, `italic 900 66px ${DISP}`, gana ? '#fff' : '#e6ecf5', 'center', 12);
-  // abajo: ataque y defensa, cada una con su título y un renglón por cosa
-  const secs = [['ATAQUE', d.ataque], ['DEFENSA', d.defensa]].filter(([, f]) => f.length), RH = 74, TH = 58, GAP = 30, y0 = 600, y1 = 1215;
-  const alto = (f) => TH + f.length * RH, total = secs.reduce((a, [, f]) => a + alto(f), 0) + GAP * (secs.length - 1), dos = secs.length > 1, m = dos ? suave(tramo(u, ...FIN_SUBE)) : 1;
-  if (!secs.length) txt('SOLO SE REGISTRÓ EL MARCADOR', VW / 2, 900, '800 24px Inter', 'rgba(214,228,247,.6)', 'center', 5);
-  let yy = y0 + Math.max(0, (y1 - y0 - total) / 2);
-  secs.forEach(([tit, filas], si) => {
-    const yFin = yy; yy += alto(filas) + GAP;
-    const y = si === 0 && dos ? y0 + (y1 - y0 - alto(filas)) / 2 + (yFin - (y0 + (y1 - y0 - alto(filas)) / 2)) * m : yFin, t0 = si === 0 ? .3 : FIN_SUBE[0] + .35;
-    const et = frena(tramo(u, t0 - .1, t0 + .2)); if (et <= 0) return;
-    x.save(); x.globalAlpha = et; x.fillStyle = 'rgba(214,228,247,.22)'; x.fillRect(90, y + 22, 300, 3); x.fillRect(VW - 390, y + 22, 300, 3);
-    txt(tit, VW / 2, y + 32, '800 26px Inter', 'rgba(214,228,247,.85)', 'center', 8); x.restore();
-    filas.forEach(([lab, gente], i) => { const e = frena(tramo(u, t0 + .1 + i * .1, t0 + .4 + i * .1)); if (e <= 0) return; const ry = y + TH + i * RH + RH * .68;
-      const linea = gente.map((p) => `${p.nom.toUpperCase()}${p.n > 1 || p.siempre ? ` ${p.n}` : ''}`).join('  ·  ');
-      x.save(); x.globalAlpha = e; x.translate((1 - e) * (si ? 70 : -70), 0);
-      txt(lab, 90, ry - 14, '800 21px Inter', AZ, 'left', 3);
-      txt(linea, 370, ry, K.ajusta(linea, `italic 900 #px ${DISP}`, VW - 90 - 370, 56, 1), '#fff', 'left', 1); x.restore(); }); });
-  olas(x, 0, 1250, 12, 1, .5, 'rgba(29,79,143,.6)', '#061027', 'rgba(140,200,255,.35)');
-  txt(`BELUGAS HDP · RÉCORD ${d.record}`, VW / 2, 1310, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6);
+  g = x.createRadialGradient(VW / 2, 200, 0, VW / 2, 200, 640); g.addColorStop(0, 'rgba(63,143,230,.3)'); g.addColorStop(1, 'rgba(63,143,230,0)'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
+  rayos(x, t, .5);
+  // arriba: el resultado
+  txt(`FINAL · ${d.fecha.toUpperCase()} · TEMPORADA 2026`, VW / 2, 70, '800 22px Inter', 'rgba(214,228,247,.8)', 'center', 6);
+  K.logo(im.lb, 170, 170, 150); K.logo(im.lr, VW - 170, 170, 150 * Number(r.kv || 1), r.sig);
+  const fm = `italic 900 170px ${DISP}`; x.save(); x.shadowColor = 'rgba(0,0,0,.4)'; x.shadowBlur = 30; x.shadowOffsetY = 8;
+  txt(d.nos, VW / 2 - 36, 226, fm, '#fff', 'right'); txt(d.ellos, VW / 2 + 36, 226, fm, gana ? 'rgba(214,228,247,.8)' : '#fff', 'left'); x.fillStyle = '#fff'; x.fillRect(VW / 2 - 22, 162, 44, 18); x.restore();
+  pincel(x, VW / 2, 286, 380, 62, 1, gana ? '#1d4f8f' : '#26324c', gana ? '#3f8fe6' : '#34425f'); txt(d.res.toUpperCase(), VW / 2, 305, `italic 900 50px ${DISP}`, gana ? '#fff' : '#e6ecf5', 'center', 10);
+  if (!d.todos.length) { txt('SOLO SE REGISTRÓ EL MARCADOR', VW / 2, 760, '800 24px Inter', 'rgba(214,228,247,.6)', 'center', 5); }
+  else {
+    // los 3 que más sumaron: el primero al centro, más grande y con corona; entran del tercero al primero, volteándose
+    const top = d.todos.slice(0, 3), resto = d.todos.slice(3);
+    [[1, 2], [0, 1], [2, 3]].filter(([i]) => top[i]).forEach(([i, n]) => { const j = top[i], w = n === 1 ? 250 : 220, cx = VW / 2 + (n === 1 ? 0 : n === 2 ? -270 : 270), cy = (n === 1 ? 380 : 410) + w * .7;
+      const e = tramo(u, .3 + (3 - n) * .18, .7 + (3 - n) * .18); if (e <= 0) return;
+      x.save(); x.translate(cx, cy); x.scale(e < .5 ? .02 + e * 1.96 : 1, 1); carta(x, im, { ...j, corona: n === 1 }, 0, 0, w, CATEGORIA(j.pts), t, [j.nom.toUpperCase(), `${j.pts} PTS`]); x.restore(); });
+    // abajo, todos los demás que jugaron, más chicas, en una o dos filas
+    if (resto.length) { const por = Math.min(6, Math.ceil(resto.length / (resto.length > 6 ? 2 : 1))), w = resto.length > 6 ? 136 : 150, gap = 14, filas = Math.ceil(resto.length / por), y0 = 860;
+      txt('Y LOS QUE JUGARON', VW / 2, y0 - 22, '800 22px Inter', 'rgba(214,228,247,.7)', 'center', 6);
+      resto.forEach((j, k) => { const fila = Math.floor(k / por), enF = Math.min(por, resto.length - fila * por), kk = k - fila * por, cx = VW / 2 - (enF * w + (enF - 1) * gap) / 2 + kk * (w + gap) + w / 2, cy = y0 + fila * (w * 1.4 + gap) + w * .7;
+        const e = rebota(tramo(u, 1.1 + k * .06, 1.4 + k * .06)); if (e <= 0) return; x.save(); x.translate(cx, cy); x.scale(e, e); carta(x, im, j, 0, 0, w, CATEGORIA(j.pts), t, [j.nom.toUpperCase(), `${j.pts} PTS`]); x.restore(); }); }
+  }
+  txt(`BELUGAS HDP · RÉCORD ${d.record}`, VW / 2, 1322, '800 22px Inter', 'rgba(214,228,247,.7)', 'center', 6);
 }
 
 // ---------- piezas que se mueven ----------
@@ -2317,74 +2415,48 @@ function escenaResultado(x, d, im, t) {
   // abajo: el récord
   x.save(); x.globalAlpha = tramo(t, 2.9, 3.3); txt(`BELUGAS HDP · RÉCORD ${d.record}`, VW / 2, 1300, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6); x.restore();
 }
-// los tiempos: el resultado, cada jugador (del tercero al primero) y el final (entra el ataque, sube, entra la defensa y se queda quieto)
-const RES_S = 3.5, JUG_S = 1.4, OLA_S = .45, FIN_S = 3.4;
-const durVideo = (d) => RES_S + d.jug.length * JUG_S + OLA_S + FIN_S;
-// una ola que sube y tapa lo de antes con lo nuevo (p de 0 a 1); devuelve el alto de la ola
+// los tiempos: el resultado, lo que pasó (ataque y, si hubo algo, defensa) y el resumen (entran las tarjetas y se queda quieto)
+const RES_S = 3.5, SEC_S = 2.7, RESU_S = 3.6, OLA_S = .45, CAMBIO_S = .55;
+const durVideo = (d) => RES_S + seccionesDe(d).length * SEC_S + RESU_S;
+// una ola que sube y tapa lo de antes con lo nuevo (p de 0 a 1)
 function olaPasa(x, t, p, nuevo) {
-  if (p <= 0) return; const base = VH + 120 - (VH + 360) * suave(p);
-  x.save(); x.beginPath(); x.moveTo(0, VH);
-  for (let px = 0; px <= VW + 12; px += 12) x.lineTo(px, base + 40 * Math.sin(px * .008 + t * 6) + 18 * Math.sin(px * .021 - t * 9));
-  x.lineTo(VW, VH); x.closePath(); x.save(); x.clip(); nuevo(); x.restore();
-  x.lineWidth = 14; x.strokeStyle = 'rgba(220,240,255,.85)'; x.stroke(); x.lineWidth = 34; x.strokeStyle = 'rgba(120,190,255,.25)'; x.stroke();
+  if (p <= 0) return; const base = VH + 120 - (VH + 360) * suave(p), ola = new Path2D(), cresta = new Path2D(); // sus propios trazos: lo que pinta «nuevo» no los toca
+  const y = (px) => base + 40 * Math.sin(px * .008 + t * 6) + 18 * Math.sin(px * .021 - t * 9);
+  ola.moveTo(0, VH); for (let px = 0; px <= VW + 12; px += 12) { ola.lineTo(px, y(px)); px ? cresta.lineTo(px, y(px)) : cresta.moveTo(px, y(px)); } ola.lineTo(VW, VH); ola.closePath();
+  x.save(); x.save(); x.clip(ola); nuevo(); x.restore();
+  x.lineWidth = 14; x.strokeStyle = 'rgba(220,240,255,.85)'; x.stroke(cresta); x.lineWidth = 34; x.strokeStyle = 'rgba(120,190,255,.25)'; x.stroke(cresta);
   x.restore();
 }
-// un jugador: su foto grande, su lugar, nombre, lo que hizo y sus puntos (u = segundos desde que entra; n = 1, 2 o 3)
-function escenaJugador(x, d, im, i, u, t) {
-  const K = kit(x), { txt } = K, j = d.jug[i], n = i + 1, MED = { 1: '#f6c453', 2: '#c6cfda', 3: '#d99257' }[n];
-  let g = x.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#061027'); g.addColorStop(1, '#10305c'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
-  g = x.createRadialGradient(VW / 2, 420, 0, VW / 2, 420, 720); g.addColorStop(0, n === 1 ? 'rgba(246,196,83,.30)' : 'rgba(63,143,230,.30)'); g.addColorStop(1, 'rgba(63,143,230,0)'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
-  rayos(x, t, .7);
-  // el número de su lugar, enorme y calado detrás
-  x.save(); x.globalAlpha = .22 * frena(tramo(u, .1, .5)); x.strokeStyle = MED; x.lineWidth = 6; x.font = `italic 900 900px ${DISP}`; x.textAlign = 'center'; x.strokeText(String(n), VW / 2 + 260, 780); x.restore();
-  // la foto: entra con un acercamiento lento
-  const k = 1.08 - .08 * frena(tramo(u, 0, JUG_S));
-  if (im.fotos[i]) { x.save(); x.translate(VW / 2, 0); x.scale(k, k); x.drawImage(im.fotos[i], -VW / 2, 20); x.restore(); }
-  else { x.save(); x.fillStyle = 'rgba(255,255,255,.1)'; x.beginPath(); x.arc(VW / 2, 470, 230, 0, 7); x.fill(); txt(iniciales(j.nom), VW / 2, 540, `800 190px Inter`); x.restore(); }
-  g = x.createLinearGradient(0, 640, 0, 1000); g.addColorStop(0, 'rgba(6,16,39,0)'); g.addColorStop(1, 'rgba(6,16,39,.92)'); x.fillStyle = g; x.fillRect(0, 640, VW, VH - 640);
-  x.fillStyle = 'rgba(6,16,39,.92)'; x.fillRect(0, 1000, VW, VH - 1000);
-  // arriba: su lugar (el primero, «Jugador del partido» con corona)
-  const pe = frena(tramo(u, .15, .45));
-  x.save(); x.globalAlpha = pe; x.translate((1 - pe) * -60, 0);
-  const et = n === 1 ? 'JUGADOR DEL PARTIDO' : `${n === 2 ? 'SEGUNDO' : 'TERCERO'} EN PUNTOS`, we = K.ancho(et, '800 28px Inter', 6) + 60;
-  x.fillStyle = n === 1 ? K.oro(70, 130) : 'rgba(255,255,255,.14)'; x.beginPath(); x.roundRect(60, 72, we, 62, 31); x.fill();
-  txt(et, 60 + we / 2, 113, '800 28px Inter', n === 1 ? '#3a2600' : '#fff', 'center', 6); x.restore();
-  if (n === 1 && im.corona) { const pk = tramo(u, .45, .85); if (pk > 0) { const cw = 170, ch = cw * im.corona.height / im.corona.width;
-    x.save(); x.globalAlpha = lim(pk * 4); x.translate(VW / 2 - 200, 180 - (1 - rebota(pk)) * 160); x.rotate(-.28); x.drawImage(im.corona, -cw / 2, -ch / 2, cw, ch); x.restore(); } }
-  // el nombre entra de lado
-  const pn = frena(tramo(u, .2, .55)), fn = K.ajusta(j.nom.toUpperCase(), `italic 900 #px ${DISP}`, VW - 120, 200, 2);
-  x.save(); x.globalAlpha = pn; x.shadowColor = 'rgba(0,0,0,.5)'; x.shadowBlur = 30; txt(j.nom.toUpperCase(), 60 - (1 - pn) * 120, 1010, fn, '#fff', 'left', 2); x.restore();
-  // sus puntos suben
-  const pp = tramo(u, .35, 1.05), pts = Math.round(j.pts * frena(pp) * 10) / 10;
-  x.save(); x.globalAlpha = frena(tramo(u, .3, .5)); txt(String(pts), VW - 60, 1010, `italic 900 120px ${DISP}`, n === 1 ? '#f6c453' : '#5aaeff', 'right');
-  txt('PTS', VW - 60, 1050, '800 26px Inter', n === 1 ? '#f6c453' : '#5aaeff', 'right', 4); x.restore();
-  // lo que hizo: hasta 3 fichas (solo lo que sí hizo)
-  const tira = j.tira.filter(([, v]) => v && v !== '0' && v !== 0).slice(0, 3), fw = Math.min(300, (VW - 120 - (tira.length - 1) * 20) / Math.max(1, tira.length));
-  tira.forEach(([kk, v], q) => { const pq = rebota(tramo(u, .5 + q * .1, .8 + q * .1)); if (pq <= 0) return; const fx = 60 + q * (fw + 20);
-    x.save(); x.translate(fx + fw / 2, 1170); x.scale(pq, pq); x.fillStyle = 'rgba(255,255,255,.95)'; x.beginPath(); x.roundRect(-fw / 2, -82, fw, 164, 22); x.fill();
-    txt(String(v), 0, 18, `italic 900 96px ${DISP}`, '#0d2347'); txt(K.cabe(kk.toUpperCase(), '800 21px Inter', fw - 30), 0, 60, '800 21px Inter', '#3f6fae', 'center', 3); x.restore(); });
+// la franja dorada inclinada que pasa del ataque a la defensa (p de 0 a 1): lo que ya barrió es la pantalla nueva
+function cambioOro(x, p, vieja, nueva) {
+  const bx = -500 + 2300 * suave(p);
+  vieja(); x.save(); x.beginPath(); x.moveTo(-10, 0); x.lineTo(bx - 360, 0); x.lineTo(bx - 760, VH); x.lineTo(-10, VH); x.closePath(); x.clip(); nueva(); x.restore();
+  x.save(); x.beginPath(); x.moveTo(bx - 300, 0); x.lineTo(bx + 200, 0); x.lineTo(bx - 200, VH); x.lineTo(bx - 700, VH); x.closePath(); x.fillStyle = '#f6c453'; x.fill();
+  x.beginPath(); x.moveTo(bx - 360, 0); x.lineTo(bx - 300, 0); x.lineTo(bx - 700, VH); x.lineTo(bx - 760, VH); x.closePath(); x.fillStyle = '#fff'; x.fill(); x.restore();
 }
 // el cuadro del segundo t
 function dibujaCuadro(x, d, im, t) {
-  const res = (tt) => escenaResultado(x, d, im, tt), nj = d.jug.length, finT = RES_S + nj * JUG_S;
-  const jug = (k) => { const i = nj - 1 - k; escenaJugador(x, d, im, i, t - (RES_S + k * JUG_S), t); }; // del tercero al primero
-  const fin = (u) => (u < FIN_ANIMA ? pintaFinal(x, d, im, u) : x.drawImage(im.fin, 0, 0)); // ya quieto es la imagen hecha
+  const secs = seccionesDe(d), n = secs.length, R0 = RES_S + n * SEC_S;
+  const sec = (k, u) => pintaSeccion(x, d, im, secs[k], Math.max(0, u));
+  const resu = (u) => (u < 2.6 ? pintaResumen(x, d, im, u) : x.drawImage(im.fin, 0, 0)); // ya quieto es la imagen hecha
   x.save();
-  if (t < RES_S) res(t);
-  else if (t < finT) { const k = Math.floor((t - RES_S) / JUG_S), u = t - (RES_S + k * JUG_S);
-    if (u < OLA_S) { k ? jug(k - 1) : res(t); olaPasa(x, t, u / OLA_S, () => jug(k)); } else jug(k); }
-  else { const u = t - finT; if (u < OLA_S) { nj ? jug(nj - 1) : res(t); olaPasa(x, t, u / OLA_S, () => fin(u)); } else fin(u); }
+  if (t < RES_S) escenaResultado(x, d, im, t);
+  else if (t < R0) { const k = Math.floor((t - RES_S) / SEC_S), u = t - (RES_S + k * SEC_S);
+    if (k === 0 && u < OLA_S) { escenaResultado(x, d, im, t); olaPasa(x, t, u / OLA_S, () => sec(0, u)); }
+    else if (k + 1 < n && u > SEC_S - CAMBIO_S) cambioOro(x, (u - (SEC_S - CAMBIO_S)) / CAMBIO_S, () => sec(k, u), () => sec(k + 1, u - SEC_S));
+    else sec(k, u); }
+  else { const u = t - R0;
+    if (u < OLA_S) { if (n) sec(n - 1, t - (RES_S + (n - 1) * SEC_S)); else escenaResultado(x, d, im, t); olaPasa(x, t, u / OLA_S, () => resu(u)); } else resu(u); }
   x.restore();
 }
-// lo que se carga una vez: letras, logos, corona, la beluga y las fotos de los 3 que más sumaron; el final ya pintado (fin) y,
-// para el video, las fotos grandes de los 3
+// lo que se carga una vez: letras, logos, corona, la beluga y las fotos (de los 3 que más sumaron y de los de ataque y defensa); el resumen ya
+// pintado (fin), que es también la imagen
 async function cargaFinal(d, video) {
   await Promise.all(['italic 900 100px "Barlow Condensed"', '800 40px Inter', '700 40px Inter', '600 40px Inter'].map((f) => document.fonts.load(f).catch(() => null)));
-  const r = R(d.rival), ids = d.jug.map((j) => j.id);
+  const r = R(d.rival), ids = [...new Set([...d.jug.map((j) => j.id), ...d.todos.map((j) => j.id), ...seccionesDe(d).flatMap(([, f]) => f.flatMap(([, gt]) => gt.map((p) => p.id)))])];
   const [lb, lr, corona, bel, ...fotos] = await Promise.all([cargaImg(LOGO), r.logo ? cargaImg(r.logo) : null, cargaImg(CORONA), video ? cargaImg(BELUGA_IMG) : null, ...ids.map((id) => (P(id) && P(id).cara ? cargaImg(P(id).cara) : null))]);
   const im = { r, lb, lr, corona, beluga: bel, cara: Object.fromEntries(ids.map((id, i) => [id, fotos[i]])) }, fin = Object.assign(document.createElement('canvas'), { width: VW, height: VH });
-  pintaFinal(fin.getContext('2d'), d, im); im.fin = fin;
-  if (video) im.fotos = d.jug.map((j) => im.cara[j.id] && capaFoto(im.cara[j.id], VW, 1000, { abajo: .45, izq: .12, der: .12 }));
+  pintaResumen(fin.getContext('2d'), d, im); im.fin = fin;
   return im;
 }
 const cargaVideo = (d) => cargaFinal(d, true);
