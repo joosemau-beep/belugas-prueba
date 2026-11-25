@@ -2147,9 +2147,10 @@ function capaFoto(im, w, h, { izq = 0, der = 0, abajo = 0, radio = 0 } = {}) {
 }
 
 // ---------- las tarjetas, como las especiales de las cajas de cartas (Mau, 24-nov): el color dice la categoría, sin letreros, según los puntos de
-// fantasy del partido, con jerarquía (Mau, 24-nov): plata (menos de 9) y hielo (9 a 16, platino con cristales) quietas; oro (16 a 30, marco que gira) y la
-// especial morada (30 o más, Mau 24-nov: oscura con cortinas de aurora moradas que salen por toda la carta, solo un poco más allá de ella). Foto, placa con el nombre, lo que hizo y un destello que la barre ----------
-const CATEGORIA = (pts) => (pts >= 30 ? 'morada' : pts >= 16 ? 'oro' : pts >= 9 ? 'hielo' : 'base');
+// fantasy del partido, con jerarquía (Mau, 24-nov): plata (menos de 4) y hielo (4 a 12, platino con cristales) quietas; oro (12 a 30, marco que gira) y la
+// especial morada (30 o más: oscura, con rayos de aurora que nacen de su orilla de arriba). Los cortes bajaron el 25-nov (Mau: «el criterio está muy lejos»): con
+// 9 y 16, en los 3 partidos marcados 16 de 26 tarjetas salían de plata; con 4 y 12 salen 9. Foto, placa con el nombre, lo que hizo y un destello que la barre ----------
+const CATEGORIA = (pts) => (pts >= 30 ? 'morada' : pts >= 12 ? 'oro' : pts >= 4 ? 'hielo' : 'base');
 const CARTA = { base: { tinte: ['#ffffff', '#c6cfda', '#9fb3cc'], metal: ['#ffffff', '#dfe6ef', '#9fb3cc'], fino: '#d6e4f7', fondo: '#1f2c48' },
   hielo: { tinte: ['#ffffff', '#bfe6ff', '#8fc6e8'], metal: ['#ffffff', '#d8f1ff', '#9fc4e0'], fino: '#d8f4ff', fondo: '#1a3558' },
   oro: { tinte: ['#ffe38c', '#f6b73c', '#dd8d16'], metal: ['#fff3c4', '#f6c453', '#b8860b'], fino: '#ffd36b', fondo: '#3a2a0a' },
