@@ -2556,15 +2556,17 @@ async function hazVideo(gid) {
     const partes = [], paro = new Promise((ok) => { rec.onstop = ok; });
     rec.ondataavailable = (e) => { if (e.data && e.data.size) partes.push(e.data); };
     rec.start(250);
-    // cada cuadro se pinta con el segundo de verdad; si la app se fue al fondo (el cuadro tardó mucho), el video se corta y se vuelve a hacer
-    const t0 = performance.now(); let antes = t0, corte = false;
+    // cada cuadro se pinta con el segundo de verdad: un tirón (teléfono lento, fotos que apenas se abren) solo deja menos cuadros, no corta nada.
+    // El video se corta, para volver a hacerlo, solo si la app se fue al fondo (o si de plano se quedó parada varios segundos)
+    const t0 = performance.now(); let antes = t0, corte = false, oculto = false; const alOcultar = () => { if (document.hidden) oculto = true; };
+    document.addEventListener('visibilitychange', alOcultar);
     await new Promise((ok) => { const paso = (ahora) => { ahora = ahora || performance.now(); if (!sigue()) return ok();
-      if (ahora - antes > 700) { corte = true; return ok(); } antes = ahora;
+      if (oculto || ahora - antes > 4000) { corte = true; return ok(); } antes = ahora;
       const t = Math.max(0, (ahora - t0) / 1000); dibujaCuadro(x, d, im, Math.min(t, dur)); yo.p = Math.min(1, t / dur);
       const b = document.querySelector('.vid-avance i'); if (b) b.style.width = (yo.p * 100).toFixed(1) + '%';
       if (t < dur + .25) requestAnimationFrame(paso); else ok(); };
     requestAnimationFrame(paso); });
-    rec.stop(); await paro; flujo.getTracks().forEach((k) => k.stop());
+    document.removeEventListener('visibilitychange', alOcultar); rec.stop(); await paro; flujo.getTracks().forEach((k) => k.stop());
     if (!sigue()) throw 0;
     if (corte) { yo.corte = true; yo.el = null; pintar(); return; }
     const blob = new Blob(partes, { type: (rec.mimeType || TIPO_VIDEO).split(';')[0] }); if (!blob.size) throw new Error('vacío');

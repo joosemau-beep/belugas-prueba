@@ -2274,7 +2274,7 @@ test('«Compartir» hace el video del partido (la beluga, el ataque y la defensa
   await pg.evaluate(() => { window.__lienzo = document.querySelector('.vid-caja canvas'); pintar(); });
   assert.ok(await pg.evaluate(() => document.querySelector('.vid-caja canvas') === window.__lienzo));
   // al terminar se ve el video ya hecho y «Compartir video» lo manda
-  await pg.waitForSelector('#tel .hoja .vid-caja video', { timeout: 45000 });
+  await pg.waitForSelector('#tel .hoja .vid-caja video', { timeout: 90000 });
   assert.match(await pg.locator('#tel .hoja h3').innerText(), /El video del partido/);
   const v = await pg.evaluate(() => ({ tam: VID.blob.size, tipo: VID.blob.type }));
   assert.match(v.tipo, /^video\/(mp4|webm)$/); assert.ok(v.tam > 100000, String(v.tam));
