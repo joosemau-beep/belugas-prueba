@@ -794,6 +794,12 @@ html.prueba .tel::after { content: 'Versión de prueba'; position: absolute; z-i
 .pp .pila .foto { width: 36px; height: 36px; box-shadow: 0 0 0 2px #fff; }
 /* compartir el resultado: arriba a la derecha, en el Final y en la ficha del partido */
 .comp { flex: none; margin-left: auto; height: 40px; padding: 0 18px; border-radius: 999px; background: var(--boton); color: #fff; font: 700 14px/1 Inter; }
+/* la hoja del video de «Compartir»: el video a 4:5 y, mientras se graba, su barrita de avance */
+.vid-caja, .vid-avance { width: min(100%, calc(52vh * .8)); margin: 0 auto 12px; }
+.vid-caja { aspect-ratio: 4 / 5; border-radius: 18px; overflow: hidden; background: #0d2347; box-shadow: 0 10px 28px rgba(11,27,51,.22); }
+.vid-caja canvas, .vid-caja video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.vid-ops { grid-template-columns: repeat(2, minmax(0, 1fr)); } .vid-ops .op { min-width: 0; } .vid-ops .op > .corta { display: block; padding: 0 10px; }
+.vid-avance { height: 6px; border-radius: 3px; background: var(--linea); overflow: hidden; margin-bottom: 16px; } .vid-avance i { display: block; height: 100%; width: 0; background: var(--boton); }
 .fila-v { display: flex; align-items: center; justify-content: space-between; }
 /* fichas: «‹ Volver» en una franja marina que sigue a la de la hora, como el encabezado de las pestañas (Iker, 17-nov) */
 .vuelta { margin: 0 -20px 14px; padding: 2px 20px 12px; min-height: 50px; } .vuelta .volver { margin: 0; }
@@ -2074,58 +2080,320 @@ function resumen() {
   </div>${nav()}</div>`;
 }
 // ---------- compartir el resultado ----------
-// Una imagen de 1080 × 1350 hecha aquí mismo (sin servidor) que sale por el menú de compartir del teléfono. Si el teléfono
-// no manda archivos, sale el texto; si no hay menú de compartir (computadora), el texto se copia.
+// Un VIDEO de ~10 s en 1080 × 1350 hecho aquí mismo (sin servidor): el resultado con la beluga (cambia si ganamos o perdimos), los 3
+// que más sumaron uno por uno y, quieta al final, la imagen del podio (Mau, 24-nov: «me gustó que salieran los 3 MVP»). Esa imagen es
+// también el respaldo: «Compartir imagen» en la hoja del video, o sola si el teléfono no puede grabar. Si el teléfono no manda
+// archivos, sale el texto; si no hay menú de compartir (computadora), el texto se copia y el video se descarga.
 const sinEsc = (s) => String(s).replace(/&(amp|lt|gt|quot|#39);/g, (m) => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" }[m]));
 const fechaLarga = (g) => (g.partido ? new Date(g.partido.dia || g.partido.inicio).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }).replace('.', '') : g.fecha);
-// lo que dice el resultado, en limpio: de aquí salen la imagen y el texto
+// lo que dice el resultado, en limpio: de aquí salen el video, la imagen y el texto. El récord es el de ESE día (compartir un partido
+// viejo no trae el de hoy); jug = los 3 que más sumaron con su foto y su tira; num = el partido en 4 números
 function datosFinal(g) {
-  const r = R(g.rival), top = Object.keys(g.st).filter((id) => P(id) && puntosDe(g.st[id]) > 0).sort((a, b) => puntosDe(g.st[b]) - puntosDe(g.st[a])).slice(0, 3);
-  return { rival: r.id, rivalNom: r.largo, nos: g.nos, ellos: g.ellos, res: resDe(g.nos, g.ellos)[2], fecha: fechaLarga(g), record: RECORD,
-    anot: anotDe(g).map((a) => [sinEsc(a.tit), sinEsc(a.sub), a.pts]), top: top.map((id) => [sinEsc(P(id).corto), puntosDe(g.st[id])]) };
+  const r = R(g.rival), qb = g.solo ? null : qbDe(g), hasta = JUEGOS.slice(0, JUEGOS.indexOf(g) + 1);
+  const gan = hasta.filter((x) => x.nos > x.ellos).length, per = hasta.filter((x) => x.nos < x.ellos).length, emp = hasta.length - gan - per;
+  const top = g.solo ? [] : Object.keys(g.st).filter((id) => P(id) && puntosDe(g.st[id]) > 0).sort((a, b) => puntosDe(g.st[b]) - puntosDe(g.st[a])).slice(0, 3);
+  let num = [];
+  if (!g.solo && g.partido) { const c = cuentas([g.partido]), bal = c.rob - c.perd;
+    num = [['Series con TD', `${c.seriesTD}/${c.seriesO}`], ['Series paradas', `${c.fren}/${c.seriesD}`], ['El balón', bal > 0 ? '+' + bal : bal < 0 ? '−' + -bal : '0'], ['Completos', `${c.comp}/${c.att}`]]; }
+  return { rival: r.id, rivalNom: r.largo, rivalCorto: r.nombre, nos: g.nos, ellos: g.ellos, res: resDe(g.nos, g.ellos)[2], fecha: fechaLarga(g), record: `${gan}–${per}${emp ? `–${emp}` : ''}`,
+    anot: anotDe(g).map((a) => [sinEsc(a.tit), sinEsc(a.sub), a.pts]), num,
+    jug: top.map((id) => { const p = P(id), x = g.st[id]; return { id, nom: sinEsc(p.nombre), cara: p.cara, pts: puntosDe(x), tira: statsJuego(x, qb === id, g, id).tira.map(([k, v]) => [k, sinEsc(String(v))]) }; }) };
 }
 const textoFinal = (d) => [`Belugas ${d.nos} – ${d.ellos} ${d.rivalNom}`, `${d.res} · ${d.fecha}`, ...d.anot.map(([t, s]) => t + (s ? ` (${s.charAt(0).toLowerCase() + s.slice(1)})` : '')), `Récord de la temporada: ${d.record}`].join('\n');
 const cargaImg = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
-async function dibujaFinal(d) {
-  const W = 1080, H = 1350, cv = Object.assign(document.createElement('canvas'), { width: W, height: H }), x = cv.getContext('2d'), r = R(d.rival);
-  const DISP = '"Barlow Condensed", "Arial Narrow", sans-serif';
-  await Promise.all(['italic 900 100px "Barlow Condensed"', '800 40px Inter', '600 40px Inter'].map((f) => document.fonts.load(f).catch(() => null)));
-  const [lb, lr] = await Promise.all([cargaImg(LOGO), r.logo ? cargaImg(r.logo) : null]);
-  // fondo: el degradado de la app
-  let g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#0d2347'); g.addColorStop(.62, '#1d4f8f'); g.addColorStop(1, '#3f8fe6'); x.fillStyle = g; x.fillRect(0, 0, W, H);
-  g = x.createRadialGradient(W, 0, 0, W, 0, 900); g.addColorStop(0, 'rgba(120,190,255,.8)'); g.addColorStop(1, 'rgba(120,190,255,0)'); x.fillStyle = g; x.fillRect(0, 0, W, H);
-  const txt = (s, cx, y, font, color = '#fff', al = 'center', esp = 0) => { x.font = font; x.fillStyle = color; x.textAlign = al; x.textBaseline = 'alphabetic'; if ('letterSpacing' in x) x.letterSpacing = esp + 'px'; x.fillText(s, cx, y); if ('letterSpacing' in x) x.letterSpacing = '0px'; };
+const VW = 1080, VH = 1350, DISP = '"Barlow Condensed", "Arial Narrow", sans-serif';
+const lim = (v) => Math.min(1, Math.max(0, v)), tramo = (t, a, b) => lim((t - a) / (b - a));
+const frena = (p) => 1 - (1 - p) ** 3, rebota = (p) => { const c = 1.70158; return p >= 1 ? 1 : 1 + (c + 1) * (p - 1) ** 3 + c * (p - 1) ** 2; }, suave = (p) => p * p * (3 - 2 * p);
+const azar = (s) => () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
+
+// las herramientas de dibujo sobre un lienzo; el espaciado de letras va letra por letra (Safari no tiene letterSpacing en el lienzo)
+function kit(x) {
+  const ancho = (s, font, e = 0) => { x.font = font; if (!e) return x.measureText(s).width; const cs = [...s]; return cs.reduce((a, c) => a + x.measureText(c).width, 0) + e * (cs.length - 1); };
+  const txt = (s, cx, y, font, color = '#fff', al = 'center', e = 0) => { s = String(s); x.font = font; x.fillStyle = color; x.textBaseline = 'alphabetic';
+    if (!e) { x.textAlign = al; x.fillText(s, cx, y); return; }
+    let px = al === 'center' ? cx - ancho(s, font, e) / 2 : al === 'right' ? cx - ancho(s, font, e) : cx; x.textAlign = 'left';
+    for (const c of s) { x.fillText(c, px, y); px += x.measureText(c).width + e; } };
   const cabe = (s, font, max) => { x.font = font; if (x.measureText(s).width <= max) return s; while (s.length > 1 && x.measureText(s + '…').width > max) s = s.slice(0, -1); return s.trimEnd() + '…'; };
-  const logo = (im, cx, cy, lado, sig) => { if (!im) { x.fillStyle = 'rgba(255,255,255,.16)'; x.beginPath(); x.arc(cx, cy, lado / 2, 0, 7); x.fill(); txt(sig, cx, cy + 22, '800 64px Inter'); return; }
-    const k = Math.min(lado / im.width, lado / im.height), w = im.width * k, h = im.height * k; x.save(); x.shadowColor = 'rgba(0,0,0,.28)'; x.shadowBlur = 24; x.shadowOffsetY = 8; x.drawImage(im, cx - w / 2, cy - h / 2, w, h); x.restore(); };
-  // hasta 4 anotaciones van en dos renglones; con más, en uno solo (y de la sexta en adelante, «y N más»). Sin anotaciones (solo marcador) el bloque baja al centro
-  const junto = d.anot.length > 4, filas = d.anot.slice(0, d.anot.length > 5 ? 4 : 5), sobran = d.anot.length - filas.length, hayT = filas.length > 0, FH = junto ? 68 : 88;
-  const altoT = hayT ? 96 + filas.length * FH + (sobran ? 56 : 0) + (d.top.length ? 96 : 20) : 0, y0 = hayT ? Math.max(0, (H - 100 - (712 + altoT)) / 2) : 290;
-  txt(`FINAL · ${d.fecha.toUpperCase()}`, W / 2, y0 + 84, '700 32px Inter', 'rgba(255,255,255,.85)', 'center', 5);
-  logo(lb, 250, y0 + 215, 210); logo(lr, W - 250, y0 + 215, 210 * Number(r.kv || 1), r.sig || '?');
-  txt('vs', W / 2, y0 + 232, `italic 900 60px ${DISP}`, 'rgba(255,255,255,.7)');
-  txt('BELUGAS', 250, y0 + 368, '800 30px Inter', '#fff', 'center', 3); txt(cabe(d.rivalNom.toUpperCase(), '800 30px Inter', 400), W - 250, y0 + 368, '800 30px Inter', '#fff', 'center', 3);
-  x.save(); x.shadowColor = 'rgba(0,0,0,.25)'; x.shadowBlur = 30; x.shadowOffsetY = 8; txt(`${d.nos} – ${d.ellos}`, W / 2, y0 + 574, `italic 900 236px ${DISP}`); x.restore();
-  // la pastilla de Ganamos / Perdimos / Empatamos
-  x.font = '800 32px Inter'; const wp = x.measureText(d.res.toUpperCase()).width + 32 * 3 + 16; x.fillStyle = 'rgba(255,255,255,.18)'; x.beginPath(); x.roundRect(W / 2 - wp / 2, y0 + 606, wp, 64, 32); x.fill();
-  txt(d.res.toUpperCase(), W / 2 + 2, y0 + 649, '800 32px Inter', '#fff', 'center', 4);
-  if (hayT) { // tarjeta blanca: cómo anotamos y, abajo, los que más puntos hicieron
-    const ty = y0 + 712, L = 70, Rr = W - 70; x.save(); x.shadowColor = 'rgba(5,14,30,.3)'; x.shadowBlur = 40; x.shadowOffsetY = 14; x.fillStyle = '#fff'; x.beginPath(); x.roundRect(L, ty, Rr - L, altoT, 40); x.fill(); x.restore();
-    txt('ANOTACIONES', L + 44, ty + 62, '800 26px Inter', '#56647a', 'left', 3);
-    let y = ty + 96;
-    filas.forEach(([t, s, pts]) => { x.fillStyle = '#e4e8ee'; x.fillRect(L + 44, y, Rr - L - 88, 2);
-      txt(`+${pts}`, Rr - 44, y + FH / 2 + 20, `italic 900 ${junto ? 52 : 58}px ${DISP}`, '#0d2347', 'right');
-      if (junto) { const a = cabe(t, '800 32px Inter', 700); txt(a, L + 44, y + 45, '800 32px Inter', '#0b1b33', 'left'); const w = x.measureText(a).width; if (s && w < 560) txt(cabe(' · ' + s, '600 28px Inter', 700 - w), L + 44 + w, y + 45, '600 28px Inter', '#56647a', 'left'); }
-      else if (s) { txt(cabe(t, '800 36px Inter', 700), L + 44, y + 43, '800 36px Inter', '#0b1b33', 'left'); txt(cabe(s, '600 28px Inter', 700), L + 44, y + 77, '600 28px Inter', '#56647a', 'left'); }
-      else txt(cabe(t, '800 36px Inter', 700), L + 44, y + 55, '800 36px Inter', '#0b1b33', 'left');
-      y += FH; });
-    if (sobran) { txt(`y ${sobran} más`, L + 44, y + 38, '600 28px Inter', '#56647a', 'left'); y += 56; }
-    if (d.top.length) { x.fillStyle = '#f3f5f8'; x.beginPath(); x.roundRect(L, y + 12, Rr - L, 84, [0, 0, 40, 40]); x.fill();
-      txt(cabe('Destacados: ' + d.top.map(([n, p], i) => `${n} ${p}${i ? '' : ' pts'}`).join(' · '), '700 28px Inter', Rr - L - 88), L + 44, y + 64, '700 28px Inter', '#0d2347', 'left'); }
-  }
-  txt(`BELUGAS HDP · TEMPORADA 2026 · ${d.record}`, W / 2, H - 56, '700 26px Inter', 'rgba(255,255,255,.75)', 'center', 3);
-  return new Promise((ok) => cv.toBlob(ok, 'image/jpeg', .92)); // en JPEG pesa la décima parte que en PNG (el fondo es un degradado)
+  // la letra más grande (de 'tam' para abajo) con la que el texto cabe en 'max'; 'f' lleva # donde va el tamaño
+  const ajusta = (s, f, max, tam, e = 0) => { let t = tam; while (t > 18 && ancho(s, f.replace('#', t), e) > max) t -= 2; return f.replace('#', t); };
+  const logo = (im, cx, cy, lado, sig = '?') => { if (!im) { x.fillStyle = 'rgba(255,255,255,.16)'; x.beginPath(); x.arc(cx, cy, lado / 2, 0, 7); x.fill(); txt(sig, cx, cy + lado * .1, `800 ${lado * .3}px Inter`); return; }
+    const k = Math.min(lado / im.width, lado / im.height), w = im.width * k, h = im.height * k; x.save(); x.shadowColor = 'rgba(0,0,0,.3)'; x.shadowBlur = 22; x.shadowOffsetY = 8; x.drawImage(im, cx - w / 2, cy - h / 2, w, h); x.restore(); };
+  const oro = (y0, y1) => { const g = x.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#ffe38c'); g.addColorStop(.55, '#f6b73c'); g.addColorStop(1, '#dd8d16'); return g; };
+  return { x, txt, ancho, cabe, ajusta, logo, oro };
 }
+// una foto recortada para llenar w × h (pegada arriba, como en la app), con desvanecidos (en fracción del cuadro); devuelve un lienzo
+function capaFoto(im, w, h, { izq = 0, der = 0, abajo = 0, radio = 0 } = {}) {
+  const o = Object.assign(document.createElement('canvas'), { width: w, height: h }), c = o.getContext('2d'); if (!im) return o;
+  const k = Math.max(w / im.width, h / im.height);
+  if (radio) { c.beginPath(); c.roundRect(0, 0, w, h, radio); c.clip(); }
+  c.drawImage(im, (w - im.width * k) / 2, 0, im.width * k, im.height * k);
+  c.globalCompositeOperation = 'destination-in';
+  const borra = (x0, y0, x1, y1, a) => { const g = c.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(a, '#000'); g.addColorStop(1, '#000'); c.fillStyle = g; c.fillRect(0, 0, w, h); };
+  if (izq) borra(0, 0, w, 0, izq); if (der) borra(w, 0, 0, 0, der); if (abajo) borra(0, h, 0, 0, abajo);
+  return o;
+}
+
+// ---------- la imagen B (el podio): el último cuadro del video y la imagen de respaldo ----------
+function pintaB(x, d, im) {
+  const K = kit(x), { txt } = K, r = im.r, W = VW, H = VH;
+  let g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#f3f8fd'); g.addColorStop(1, '#e3eefa'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  if (im.lb) x.drawImage(im.lb, 60, 40, 92, 92 * im.lb.height / im.lb.width);
+  txt('BELUGAS HDP', 172, 88, `italic 900 50px ${DISP}`, '#0b1b33', 'left', 1);
+  txt(`TEMPORADA 2026 · RÉCORD ${d.record}`, 174, 124, '700 23px Inter', 'rgba(11,27,51,.6)', 'left', 2);
+  const C = { l: 48, t: 172, w: W - 96, h: H - 172 - 48 };
+  x.save(); x.shadowColor = 'rgba(13,35,71,.32)'; x.shadowBlur = 50; x.shadowOffsetY = 18;
+  g = x.createLinearGradient(0, C.t, 0, C.t + C.h); g.addColorStop(0, '#13234a'); g.addColorStop(1, '#0c1630'); x.fillStyle = g; x.beginPath(); x.roundRect(C.l, C.t, C.w, C.h, 56); x.fill(); x.restore();
+  x.save(); x.beginPath(); x.roundRect(C.l, C.t, C.w, C.h, 56); x.clip();
+  g = x.createRadialGradient(W / 2, C.t, 0, W / 2, C.t, 620); g.addColorStop(0, 'rgba(90,174,255,.28)'); g.addColorStop(1, 'rgba(90,174,255,0)'); x.fillStyle = g; x.fillRect(C.l, C.t, C.w, C.h);
+  const acento = d.nos > d.ellos ? '#5aaeff' : d.nos < d.ellos ? '#ff8a80' : '#d6e4f7';
+  txt(`${d.res.toUpperCase()} · ${d.fecha.toUpperCase()}`, W / 2, C.t + 70, '800 26px Inter', acento, 'center', 6);
+  K.logo(im.lb, 210, C.t + 196, 150); K.logo(im.lr, W - 210, C.t + 196, 150 * Number(r.kv || 1), r.sig || '?');
+  txt(`${d.nos}–${d.ellos}`, W / 2, C.t + 262, K.ajusta(`${d.nos}–${d.ellos}`, `italic 900 #px ${DISP}`, 440, 190));
+  txt('BELUGAS', 210, C.t + 320, '800 22px Inter', 'rgba(214,228,247,.75)', 'center', 3);
+  txt(K.cabe(d.rivalCorto.toUpperCase(), '800 22px Inter', 280), W - 210, C.t + 320, '800 22px Inter', 'rgba(214,228,247,.75)', 'center', 3);
+  let y = C.t + 372;
+  if (d.num.length) { x.fillStyle = 'rgba(255,255,255,.06)'; x.fillRect(C.l, y, C.w, 170); x.fillStyle = 'rgba(255,255,255,.08)'; x.fillRect(C.l, y, C.w, 2);
+    d.num.forEach(([k, v], i) => { const cx = C.l + C.w * (i + .5) / 4; if (i) { x.fillStyle = 'rgba(255,255,255,.1)'; x.fillRect(C.l + C.w * i / 4, y + 30, 2, 110); }
+      txt(v, cx, y + 98, `italic 900 76px ${DISP}`, v.startsWith('−') ? '#ff8a80' : '#fff'); txt(k.toUpperCase(), cx, y + 138, '700 19px Inter', 'rgba(214,228,247,.75)', 'center', 2); });
+    y += 170; }
+  if (d.jug.length) { txt('LOS QUE MÁS SUMARON', W / 2, y + 62, '800 22px Inter', 'rgba(214,228,247,.6)', 'center', 4);
+    const orden = [[1, 2], [0, 1], [2, 3]].filter(([i]) => d.jug[i]), cw = 280, gap = 24, x0 = (W - (3 * cw + 2 * gap)) / 2, base = C.t + C.h - 40, med = { 2: '#c6cfda', 3: '#d99257' };
+    orden.forEach(([i, n]) => { const j = d.jug[i], ch = n === 1 ? 446 : 404, cx = x0 + (n === 1 ? 1 : n === 2 ? 0 : 2) * (cw + gap), cy = base - ch;
+      x.fillStyle = 'rgba(255,255,255,.06)'; x.beginPath(); x.roundRect(cx, cy, cw, ch, 34); x.fill();
+      if (im.caras[i]) x.drawImage(capaFoto(im.caras[i], cw, ch - 110, { abajo: .3, radio: 34 }), cx, cy);
+      else { x.fillStyle = 'rgba(255,255,255,.1)'; x.beginPath(); x.arc(cx + cw / 2, cy + 170, 80, 0, 7); x.fill(); txt(iniciales(j.nom), cx + cw / 2, cy + 192, '800 60px Inter'); }
+      x.fillStyle = n === 1 ? K.oro(cy, cy + 8) : med[n]; x.beginPath(); x.roundRect(cx + 26, cy, cw - 52, 7, [0, 0, 6, 6]); x.fill();
+      if (n === 1 && im.corona) x.drawImage(im.corona, cx + 22, cy + 22, 66, 66 * im.corona.height / im.corona.width);
+      txt(K.cabe(j.nom.toUpperCase(), `italic 900 56px ${DISP}`, cw - 40), cx + cw / 2, cy + ch - 82, `italic 900 56px ${DISP}`);
+      txt(`${j.pts} PTS`, cx + cw / 2, cy + ch - 36, '800 26px Inter', n === 1 ? '#f6c453' : '#5aaeff', 'center', 2); }); }
+  x.restore();
+}
+
+// ---------- piezas que se mueven ----------
+// La beluga, dibujada con trazos (blanca, sombra azul y contorno marino, como la del escudo). Mira a la derecha (s negativa: a la
+// izquierda); mide ~520 de largo con el centro en (0, 0). t mueve la cola y la aleta; brillo = el halo azul claro (sobre fondo oscuro).
+function beluga(x, cx, cy, s, ang, t, alfa = 1, brillo = true) {
+  if (alfa <= 0) return;
+  x.save(); x.translate(cx, cy); x.rotate(ang); x.scale(s, Math.abs(s)); x.globalAlpha *= alfa;
+  x.lineJoin = 'round'; x.lineCap = 'round';
+  const TINTA = '#0d2347', piel = (y0, y1, a = '#ffffff', b = '#a9c0de') => { const g = x.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, a); g.addColorStop(.55, '#edf3fb'); g.addColorStop(1, b); return g; };
+  const cola = Math.sin(t * 7) * .2;
+  // la silueta: cola + cuerpo, con un solo contorno por fuera (primero el trazo grueso, luego el relleno encima)
+  const cuerpo = () => { x.beginPath(); x.moveTo(262, 20);
+    x.bezierCurveTo(266, 8, 262, 2, 254, 0); x.bezierCurveTo(262, -40, 236, -88, 176, -88); x.bezierCurveTo(150, -88, 132, -80, 116, -80);
+    x.bezierCurveTo(70, -82, 20, -94, -40, -80); x.bezierCurveTo(-100, -62, -170, -30, -238, -9); x.quadraticCurveTo(-248, 0, -238, 9);
+    x.bezierCurveTo(-170, 26, -110, 58, -60, 70); x.bezierCurveTo(10, 88, 90, 90, 150, 74); x.bezierCurveTo(200, 62, 236, 44, 252, 34); x.bezierCurveTo(262, 30, 266, 26, 262, 20); x.closePath(); };
+  const aletaCola = () => { x.save(); x.translate(-236, 0); x.rotate(cola); x.beginPath(); x.moveTo(14, -10);
+    x.bezierCurveTo(-20, -24, -60, -58, -94, -80); x.bezierCurveTo(-86, -52, -78, -24, -62, -5); x.quadraticCurveTo(-68, 0, -62, 5);
+    x.bezierCurveTo(-78, 24, -86, 52, -94, 80); x.bezierCurveTo(-60, 58, -20, 24, 14, 10); x.closePath(); x.restore(); };
+  if (brillo) { x.save(); x.shadowColor = 'rgba(120,190,255,.55)'; x.shadowBlur = 40; x.fillStyle = TINTA; aletaCola(); x.fill(); cuerpo(); x.fill(); x.restore(); }
+  [aletaCola, cuerpo].forEach((p) => { p(); x.lineWidth = 14; x.strokeStyle = TINTA; x.stroke(); });
+  aletaCola(); x.fillStyle = piel(-80, 80); x.fill();
+  cuerpo(); x.fillStyle = piel(-92, 84); x.fill();
+  // la frente (el melón) brilla, la panza lleva su sombra y una arruga suave marca el cuello
+  x.save(); cuerpo(); x.clip();
+  let g = x.createRadialGradient(196, -52, 4, 196, -52, 86); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(100, -110, 180, 140);
+  g = x.createLinearGradient(0, 24, 0, 92); g.addColorStop(0, 'rgba(60,100,165,0)'); g.addColorStop(1, 'rgba(60,100,165,.38)'); x.fillStyle = g; x.fillRect(-260, 24, 530, 70);
+  x.beginPath(); x.moveTo(132, -72); x.bezierCurveTo(120, -50, 120, -26, 128, -6); x.lineWidth = 5; x.strokeStyle = 'rgba(100,140,195,.16)'; x.stroke();
+  x.restore();
+  // la aleta del lado, ancha como remo
+  x.save(); x.translate(112, 44); x.rotate(Math.sin(t * 7 + 1) * .14);
+  x.beginPath(); x.moveTo(16, -6); x.bezierCurveTo(2, 30, -30, 64, -64, 78); x.bezierCurveTo(-84, 84, -86, 64, -70, 46); x.bezierCurveTo(-50, 22, -22, 2, 16, -6); x.closePath();
+  x.lineWidth = 8; x.strokeStyle = TINTA; x.stroke(); x.fillStyle = piel(-6, 80, '#f4f8fd', '#93afd6'); x.fill();
+  x.restore();
+  x.beginPath(); x.moveTo(259, 24); x.bezierCurveTo(246, 38, 226, 40, 210, 28); x.lineWidth = 6; x.strokeStyle = TINTA; x.stroke();
+  x.beginPath(); x.arc(198, -6, 10, 0, 7); x.fillStyle = TINTA; x.fill();
+  x.beginPath(); x.arc(201, -9, 3.4, 0, 7); x.fillStyle = '#fff'; x.fill();
+  x.restore();
+}
+// una capa de olas: alto de la superficie en cada x; se rellena hasta abajo y lleva su cresta clara
+function olas(x, t, base, A, v, fase, c1, c2, cresta, x0 = 0, x1 = VW, abajo = VH) {
+  const y = (px) => base + A * Math.sin(px * .0062 + t * v + fase) + A * .45 * Math.sin(px * .0143 - t * v * 1.4 + fase * 2);
+  x.beginPath(); x.moveTo(x0, abajo); for (let px = x0; px <= x1 + 12; px += 12) x.lineTo(px, y(px)); x.lineTo(x1, abajo); x.closePath();
+  const g = x.createLinearGradient(0, base - A, 0, abajo); g.addColorStop(0, c1); g.addColorStop(1, c2); x.fillStyle = g; x.fill();
+  x.beginPath(); for (let px = x0; px <= x1 + 12; px += 12) px === x0 ? x.moveTo(px, y(px)) : x.lineTo(px, y(px)); x.lineWidth = 4; x.strokeStyle = cresta; x.stroke();
+  return y;
+}
+// salpicadura: una corona de agua (picos que se abren y caen), gotas que saltan desde (cx, cy) en t0 y un anillo de espuma en la superficie.
+// Todo lo «al azar» sale de la semilla y se saca completo para cada gota: así cada cuadro ve las mismas gotas
+function salpica(x, t, t0, cx, cy, n = 34, fuerza = 1, semilla = 7) {
+  const dt = t - t0; if (dt < 0 || dt > 1.4) return;
+  const a = azar(semilla);
+  x.save();
+  const k = 1 - tramo(dt, 0, .7); if (k > 0) { x.globalAlpha = k * .7; x.strokeStyle = '#d6ecff'; x.lineWidth = 5; x.beginPath(); x.ellipse(cx, cy + 6, 70 + dt * 380, 12 + dt * 40, 0, 0, 7); x.stroke(); }
+  const h = Math.sin(Math.PI * tramo(dt, 0, .62)), sube = 1 - tramo(dt, .45, .7);
+  for (let i = 0; i < 13; i++) { const q = i / 12 - .5, ang = q * 1.7 + (a() - .5) * .18, L = (110 + a() * 150) * fuerza * (1 - Math.abs(q) * .6), w = 9 + a() * 9; if (h < .03) continue;
+    const bx = cx + q * 150, tx = bx + Math.sin(ang) * L * h * 1.15, ty = cy - Math.cos(ang) * L * h;
+    const g = x.createLinearGradient(0, ty, 0, cy); g.addColorStop(0, `rgba(255,255,255,${.65 * sube + .3})`); g.addColorStop(1, 'rgba(170,215,255,.15)'); x.fillStyle = g; x.globalAlpha = .9;
+    x.beginPath(); x.moveTo(bx - w, cy); x.quadraticCurveTo(bx + (tx - bx) * .3 - w * .4, cy - (cy - ty) * .6, tx, ty); x.quadraticCurveTo(bx + (tx - bx) * .3 + w * .4, cy - (cy - ty) * .6, bx + w, cy); x.closePath(); x.fill();
+    x.beginPath(); x.arc(tx, ty, w * .55 * Math.min(1, h * 3), 0, 7); x.fillStyle = '#fff'; x.fill(); }
+  for (let i = 0; i < n; i++) {
+    const vx = (a() - .5) * 820 * fuerza, vy = -(480 + a() * 820) * fuerza, r = 3 + a() * 8, tg = a() * .1, ox = (a() - .5) * 120, azul = a() < .3, d2 = dt - tg; if (d2 < 0) continue;
+    const px = cx + ox + vx * d2, py = cy + vy * d2 + 1500 * d2 * d2, vyy = vy + 3000 * d2;
+    if (py > cy + 30 || (vyy > 0 && py > cy - 24)) continue;
+    x.globalAlpha = lim(1.3 - d2) * .95; x.fillStyle = azul ? '#9fd0ff' : '#ffffff';
+    x.save(); x.translate(px, py); x.rotate(Math.atan2(vyy, vx)); x.beginPath(); x.ellipse(0, 0, r * 1.8, r, 0, 0, 7); x.fill(); x.restore();
+  }
+  // la bruma de la base
+  if (h > .03) { x.globalAlpha = h * .5; const g = x.createRadialGradient(cx, cy, 0, cx, cy, 200 * fuerza); g.addColorStop(0, 'rgba(255,255,255,.8)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(cx - 220, cy - 220, 440, 260); }
+  x.restore();
+}
+// burbujas que suben desde (cx, cy) a partir de t0
+function burbujas(x, t, t0, cx, cy, n = 10, semilla = 3) {
+  const a = azar(semilla); x.save(); x.strokeStyle = 'rgba(190,225,255,.7)'; x.lineWidth = 3;
+  for (let i = 0; i < n; i++) { const tg = a() * 2.4, r = 5 + a() * 10, f = a() * 6, ox = (a() - .5) * 40, d = t - t0 - tg; if (d < 0 || d > 1.8) continue;
+    x.globalAlpha = lim(1.6 - d) * .8; x.beginPath(); x.arc(cx + Math.sin(d * 5 + f) * 10 + ox, cy - d * 190, r, 0, 7); x.stroke(); }
+  x.restore();
+}
+// rayos de luz desde arriba, como bajo el agua
+function rayos(x, t, fuerza = 1) {
+  x.save(); x.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 5; i++) { const cx = 120 + i * 220 + Math.sin(t * .6 + i * 1.7) * 40, w = 70 + (i % 3) * 40;
+    const g = x.createLinearGradient(0, 0, 0, VH * .85); g.addColorStop(0, `rgba(110,180,255,${.13 * fuerza})`); g.addColorStop(1, 'rgba(110,180,255,0)'); x.fillStyle = g;
+    x.beginPath(); x.moveTo(cx - w * .3, 0); x.lineTo(cx + w * .3, 0); x.lineTo(cx + w * 1.6 - 160, VH * .85); x.lineTo(cx - w * 1.6 - 160, VH * .85); x.closePath(); x.fill(); }
+  x.restore();
+}
+// la franja de pincel de «VICTORIA» / «DERROTA»: entra de izquierda a derecha (p de 0 a 1)
+function pincel(x, cx, cy, w, h, p, c1, c2, semilla = 5) {
+  if (p <= 0) return; const a = azar(semilla), x0 = cx - w / 2, x1 = x0 + w * p, k = 0.1;
+  x.save(); x.translate(cx, cy); x.transform(1, 0, -k, 1, 0, 0); x.translate(-cx, -cy);
+  x.beginPath(); x.moveTo(x0, cy - h / 2);
+  for (let px = x0; px < x1; px += 26) x.lineTo(px, cy - h / 2 + (a() - .5) * 10);
+  for (let i = 0; i <= 6; i++) x.lineTo(x1 + (a() - .3) * 26, cy - h / 2 + h * i / 6);
+  for (let px = x1; px > x0; px -= 26) x.lineTo(px, cy + h / 2 + (a() - .5) * 10);
+  for (let i = 6; i >= 0; i--) x.lineTo(x0 - (a() - .3) * 22, cy - h / 2 + h * i / 6);
+  x.closePath(); const g = x.createLinearGradient(x0, 0, x0 + w, 0); g.addColorStop(0, c1); g.addColorStop(1, c2); x.fillStyle = g; x.fill();
+  x.restore();
+}
+// un número del marcador que sube de 0 a n
+const cuenta = (n, p) => Math.round(n * frena(p));
+
+// el resultado (3.5 s): noche de mar, como el post que le gustó a Mau (escogido de 3 estilos, 24-nov). Ganando, la beluga salta del agua, cae con salpicadura y entra «VICTORIA»;
+// perdiendo, el mar se calma, la beluga nada despacio bajo el agua y «DERROTA» entra sin brincos
+function escenaResultado(x, d, im, t) {
+  const K = kit(x), { txt } = K, gana = d.nos > d.ellos, r = im.r, mar = 1112;
+  let g = x.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#061027'); g.addColorStop(.5, gana ? '#0d2347' : '#0b1c38'); g.addColorStop(1, gana ? '#14386b' : '#10284c'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
+  g = x.createRadialGradient(VW / 2, 640, 0, VW / 2, 640, 700); g.addColorStop(0, gana ? 'rgba(63,143,230,.32)' : 'rgba(63,143,230,.14)'); g.addColorStop(1, 'rgba(63,143,230,0)'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
+  rayos(x, t, gana ? 1 : .55);
+  // arriba: la fecha y «FINAL»
+  const pa = frena(tramo(t, .05, .5));
+  x.save(); x.globalAlpha = pa; txt(`${d.fecha.toUpperCase()} · TEMPORADA 2026`, VW / 2, 122 - (1 - pa) * 20, '800 26px Inter', 'rgba(214,228,247,.8)', 'center', 7); x.restore();
+  const pf = frena(tramo(t, .1, .55));
+  x.save(); x.globalAlpha = pf; x.translate(VW / 2, 292); x.scale(1.25 - .25 * pf, 1.25 - .25 * pf); x.shadowColor = 'rgba(0,0,0,.35)'; x.shadowBlur = 30; txt('FINAL', 0, 0, `italic 900 210px ${DISP}`, '#fff', 'center', 6); x.restore();
+  x.save(); x.globalAlpha = pf; g = x.createLinearGradient(VW / 2 - 260, 0, VW / 2 + 260, 0); g.addColorStop(0, 'rgba(63,143,230,0)'); g.addColorStop(.5, '#3f8fe6'); g.addColorStop(1, 'rgba(63,143,230,0)');
+  x.fillStyle = g; x.beginPath(); x.moveTo(VW / 2 - 260 * pf, 318); x.lineTo(VW / 2 + 260 * pf, 312); x.lineTo(VW / 2 + 250 * pf, 324); x.lineTo(VW / 2 - 250 * pf, 332); x.fill(); x.restore();
+  // el mar de atrás
+  const calma = gana ? 1 : .55;
+  olas(x, t, mar - 18, 18 * calma, 2.2 * calma, 0, gana ? '#1d4f8f' : '#173d6e', '#0d2347', 'rgba(140,200,255,.45)');
+  // ganando: la beluga salta del agua (entre las dos capas de olas, para que salga del agua)
+  const ts = 1.2, te = 2.55;
+  if (gana && t > ts - .1 && t < te + .2) { const p = (t - ts) / (te - ts), bx = 150 + 790 * p, by = 1190 - 2900 * p * (1 - p), ang = Math.atan2(-2900 * (1 - 2 * p), 790) * .9;
+    beluga(x, bx, by, .74, ang, t, 1); }
+  // logos y vs
+  const pl = rebota(tramo(t, .25, .8)), pr = rebota(tramo(t, .35, .9));
+  K.logo(im.lb, 240 - (1 - pl) * 400, 520, 270); K.logo(im.lr, VW - 240 + (1 - pr) * 400, 520, 270 * Number(r.kv || 1), r.sig);
+  x.save(); x.globalAlpha = tramo(t, .6, .9); txt('VS', VW / 2, 548, `italic 900 84px ${DISP}`, 'rgba(214,228,247,.75)'); x.restore();
+  // el marcador sube de 0 al final
+  const pm = tramo(t, .55, 1.55), am = frena(tramo(t, .5, .75));
+  x.save(); x.globalAlpha = am; x.shadowColor = 'rgba(0,0,0,.4)'; x.shadowBlur = 36; x.shadowOffsetY = 10;
+  const fm = `italic 900 300px ${DISP}`; txt(cuenta(d.nos, pm), VW / 2 - 70, 898, fm, '#fff', 'right'); txt(cuenta(d.ellos, pm), VW / 2 + 70, 898, fm, gana ? 'rgba(214,228,247,.82)' : '#fff', 'left');
+  x.fillStyle = '#fff'; x.beginPath(); x.moveTo(VW / 2 - 40, 790); x.lineTo(VW / 2 + 46, 790); x.lineTo(VW / 2 + 40, 820); x.lineTo(VW / 2 - 46, 820); x.fill(); x.restore();
+  // ganando: el trazo azul alrededor de nuestro número y la corona; perdiendo, una raya roja corta bajo el de ellos (empate: nada)
+  const wn = K.ancho(String(d.nos), fm);
+  if (gana) { const pc = frena(tramo(t, 2.62, 3.05)); if (pc > 0) { x.save(); x.translate(VW / 2 - 70 - wn / 2, 790); x.rotate(-.1); x.beginPath(); x.ellipse(0, 0, wn / 2 + 70, 150, 0, Math.PI * .95, Math.PI * .95 + Math.PI * 2 * pc * .97);
+      x.lineWidth = 16; x.lineCap = 'round'; x.strokeStyle = '#3f8fe6'; x.shadowColor = 'rgba(63,143,230,.8)'; x.shadowBlur = 24; x.stroke(); x.restore(); }
+    const pk = tramo(t, 2.75, 3.15); if (pk > 0 && im.corona) { const cw = 210, ch = cw * im.corona.height / im.corona.width, cy = 680 - (1 - rebota(pk)) * 260;
+      x.save(); x.globalAlpha = lim(pk * 4); x.translate(VW / 2 - 70 - wn / 2 - (wn / 2 + 70) * .62, cy); x.rotate(-.32); x.drawImage(im.corona, -cw / 2, -ch / 2, cw, ch); x.restore(); } }
+  else if (d.nos < d.ellos) { const pc = frena(tramo(t, 1.9, 2.3)), we = K.ancho(String(d.ellos), fm); if (pc > 0) { x.fillStyle = '#ff6b5e'; x.beginPath(); x.roundRect(VW / 2 + 70, 922, we * pc, 12, 6); x.fill(); } }
+  // la franja del resultado
+  const pv = gana ? frena(tramo(t, 2.55, 2.85)) : frena(tramo(t, 1.75, 2.25));
+  const sacude = gana ? Math.sin(t * 90) * 10 * (1 - tramo(t, 2.6, 2.9)) * (t > 2.6 ? 1 : 0) : 0;
+  x.save(); x.translate(sacude, 0);
+  pincel(x, VW / 2, 1010, 620, 104, pv, gana ? '#1d4f8f' : '#26324c', gana ? '#3f8fe6' : '#34425f');
+  if (pv > .5) { x.globalAlpha = tramo(pv, .5, 1); txt(d.res.toUpperCase(), VW / 2, 1040, `italic 900 88px ${DISP}`, gana ? '#fff' : '#e6ecf5', 'center', 14); }
+  x.restore();
+  // el mar de enfrente
+  olas(x, t, mar + 30, 22 * calma, -1.7 * calma, 1.3, gana ? '#14386b' : '#11305a', '#061027', 'rgba(190,225,255,.7)');
+  if (gana) { salpica(x, t, ts + .08, 210, mar + 10, 30, 1, 11); salpica(x, t, te - .08, 900, mar + 10, 34, 1.15, 23);
+    const fl = 1 - tramo(t, te, te + .3); if (t > te && fl > 0) { x.fillStyle = `rgba(255,255,255,${.22 * fl})`; x.fillRect(0, 0, VW, VH); } }
+  else { // perdiendo: la beluga nada despacio bajo el agua, de derecha a izquierda, y suelta burbujas
+    const bx = 1260 - (t - .4) * 330, by = 1250 + Math.sin(t * 2.2) * 10;
+    x.save(); x.beginPath(); x.rect(0, mar + 20, VW, VH); x.clip(); beluga(x, bx, by, -.5, Math.sin(t * 2.2 + 1) * .05, t * .6, .55, false);
+    x.fillStyle = 'rgba(12,32,64,.35)'; x.fillRect(0, mar, VW, VH); x.restore();
+    burbujas(x, t, .8, bx - 130, by - 40, 8, 5); }
+  // abajo: el récord
+  x.save(); x.globalAlpha = tramo(t, 2.9, 3.3); txt(`BELUGAS HDP · RÉCORD ${d.record}`, VW / 2, 1300, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6); x.restore();
+}
+// los tiempos: el resultado, cada jugador (del tercero al primero) y la imagen B quieta al final
+const RES_S = 3.5, JUG_S = 1.6, OLA_S = .45, FIN_S = 1.6;
+const durVideo = (d) => RES_S + d.jug.length * JUG_S + OLA_S + FIN_S;
+// una ola que sube y tapa lo de antes con lo nuevo (p de 0 a 1); devuelve el alto de la ola
+function olaPasa(x, t, p, nuevo) {
+  if (p <= 0) return; const base = VH + 120 - (VH + 360) * suave(p);
+  x.save(); x.beginPath(); x.moveTo(0, VH);
+  for (let px = 0; px <= VW + 12; px += 12) x.lineTo(px, base + 40 * Math.sin(px * .008 + t * 6) + 18 * Math.sin(px * .021 - t * 9));
+  x.lineTo(VW, VH); x.closePath(); x.save(); x.clip(); nuevo(); x.restore();
+  x.lineWidth = 14; x.strokeStyle = 'rgba(220,240,255,.85)'; x.stroke(); x.lineWidth = 34; x.strokeStyle = 'rgba(120,190,255,.25)'; x.stroke();
+  x.restore();
+}
+// un jugador: su foto grande, su lugar, nombre, lo que hizo y sus puntos (u = segundos desde que entra; n = 1, 2 o 3)
+function escenaJugador(x, d, im, i, u, t) {
+  const K = kit(x), { txt } = K, j = d.jug[i], n = i + 1, MED = { 1: '#f6c453', 2: '#c6cfda', 3: '#d99257' }[n];
+  let g = x.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#061027'); g.addColorStop(1, '#10305c'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
+  g = x.createRadialGradient(VW / 2, 420, 0, VW / 2, 420, 720); g.addColorStop(0, n === 1 ? 'rgba(246,196,83,.30)' : 'rgba(63,143,230,.30)'); g.addColorStop(1, 'rgba(63,143,230,0)'); x.fillStyle = g; x.fillRect(0, 0, VW, VH);
+  rayos(x, t, .7);
+  // el número de su lugar, enorme y calado detrás
+  x.save(); x.globalAlpha = .22 * frena(tramo(u, .1, .5)); x.strokeStyle = MED; x.lineWidth = 6; x.font = `italic 900 900px ${DISP}`; x.textAlign = 'center'; x.strokeText(String(n), VW / 2 + 260, 780); x.restore();
+  // la foto: entra con un acercamiento lento
+  const k = 1.08 - .08 * frena(tramo(u, 0, JUG_S));
+  if (im.fotos[i]) { x.save(); x.translate(VW / 2, 0); x.scale(k, k); x.drawImage(im.fotos[i], -VW / 2, 20); x.restore(); }
+  else { x.save(); x.fillStyle = 'rgba(255,255,255,.1)'; x.beginPath(); x.arc(VW / 2, 470, 230, 0, 7); x.fill(); txt(iniciales(j.nom), VW / 2, 540, `800 190px Inter`); x.restore(); }
+  g = x.createLinearGradient(0, 640, 0, 1000); g.addColorStop(0, 'rgba(6,16,39,0)'); g.addColorStop(1, 'rgba(6,16,39,.92)'); x.fillStyle = g; x.fillRect(0, 640, VW, VH - 640);
+  x.fillStyle = 'rgba(6,16,39,.92)'; x.fillRect(0, 1000, VW, VH - 1000);
+  // arriba: su lugar (el primero, «Jugador del partido» con corona)
+  const pe = frena(tramo(u, .15, .45));
+  x.save(); x.globalAlpha = pe; x.translate((1 - pe) * -60, 0);
+  const et = n === 1 ? 'JUGADOR DEL PARTIDO' : `${n === 2 ? 'SEGUNDO' : 'TERCERO'} EN PUNTOS`, we = K.ancho(et, '800 28px Inter', 6) + 60;
+  x.fillStyle = n === 1 ? K.oro(70, 130) : 'rgba(255,255,255,.14)'; x.beginPath(); x.roundRect(60, 72, we, 62, 31); x.fill();
+  txt(et, 60 + we / 2, 113, '800 28px Inter', n === 1 ? '#3a2600' : '#fff', 'center', 6); x.restore();
+  if (n === 1 && im.corona) { const pk = tramo(u, .45, .85); if (pk > 0) { const cw = 170, ch = cw * im.corona.height / im.corona.width;
+    x.save(); x.globalAlpha = lim(pk * 4); x.translate(VW / 2 - 200, 180 - (1 - rebota(pk)) * 160); x.rotate(-.28); x.drawImage(im.corona, -cw / 2, -ch / 2, cw, ch); x.restore(); } }
+  // el nombre entra de lado
+  const pn = frena(tramo(u, .2, .55)), fn = K.ajusta(j.nom.toUpperCase(), `italic 900 #px ${DISP}`, VW - 120, 200, 2);
+  x.save(); x.globalAlpha = pn; x.shadowColor = 'rgba(0,0,0,.5)'; x.shadowBlur = 30; txt(j.nom.toUpperCase(), 60 - (1 - pn) * 120, 1010, fn, '#fff', 'left', 2); x.restore();
+  // sus puntos suben
+  const pp = tramo(u, .35, 1.05), pts = Math.round(j.pts * frena(pp) * 10) / 10;
+  x.save(); x.globalAlpha = frena(tramo(u, .3, .5)); txt(String(pts), VW - 60, 1010, `italic 900 120px ${DISP}`, n === 1 ? '#f6c453' : '#5aaeff', 'right');
+  txt('PTS', VW - 60, 1050, '800 26px Inter', n === 1 ? '#f6c453' : '#5aaeff', 'right', 4); x.restore();
+  // lo que hizo: hasta 3 fichas (solo lo que sí hizo)
+  const tira = j.tira.filter(([, v]) => v && v !== '0' && v !== 0).slice(0, 3), fw = Math.min(300, (VW - 120 - (tira.length - 1) * 20) / Math.max(1, tira.length));
+  tira.forEach(([kk, v], q) => { const pq = rebota(tramo(u, .5 + q * .1, .8 + q * .1)); if (pq <= 0) return; const fx = 60 + q * (fw + 20);
+    x.save(); x.translate(fx + fw / 2, 1170); x.scale(pq, pq); x.fillStyle = 'rgba(255,255,255,.95)'; x.beginPath(); x.roundRect(-fw / 2, -82, fw, 164, 22); x.fill();
+    txt(String(v), 0, 18, `italic 900 96px ${DISP}`, '#0d2347'); txt(K.cabe(kk.toUpperCase(), '800 21px Inter', fw - 30), 0, 60, '800 21px Inter', '#3f6fae', 'center', 3); x.restore(); });
+}
+// el cuadro del segundo t
+function dibujaCuadro(x, d, im, t) {
+  const res = (tt) => escenaResultado(x, d, im, tt), nj = d.jug.length, finT = RES_S + nj * JUG_S;
+  const jug = (k) => { const i = nj - 1 - k; escenaJugador(x, d, im, i, t - (RES_S + k * JUG_S), t); }; // del tercero al primero
+  const fin = () => x.drawImage(im.fin, 0, 0);
+  x.save();
+  if (t < RES_S) res(t);
+  else if (t < finT) { const k = Math.floor((t - RES_S) / JUG_S), u = t - (RES_S + k * JUG_S);
+    if (u < OLA_S) { k ? jug(k - 1) : res(t); olaPasa(x, t, u / OLA_S, () => jug(k)); } else jug(k); }
+  else { const u = t - finT; if (u < OLA_S) { nj ? jug(nj - 1) : res(t); olaPasa(x, t, u / OLA_S, fin); } else fin(); }
+  x.restore();
+}
+// lo que se carga una vez: letras, logos, corona y fotos; la imagen del podio ya pintada (fin) y, para el video, las fotos grandes
+async function cargaFinal(d, video) {
+  await Promise.all(['italic 900 100px "Barlow Condensed"', '800 40px Inter', '700 40px Inter', '600 40px Inter'].map((f) => document.fonts.load(f).catch(() => null)));
+  const r = R(d.rival), [lb, lr, corona, ...caras] = await Promise.all([cargaImg(LOGO), r.logo ? cargaImg(r.logo) : null, cargaImg(CORONA), ...d.jug.map((j) => (j.cara ? cargaImg(j.cara) : null))]);
+  const im = { r, lb, lr, corona, caras }, fin = Object.assign(document.createElement('canvas'), { width: VW, height: VH }); pintaB(fin.getContext('2d'), d, im); im.fin = fin;
+  if (video) im.fotos = caras.map((c) => c && capaFoto(c, VW, 1000, { abajo: .45, izq: .12, der: .12 }));
+  return im;
+}
+const cargaVideo = (d) => cargaFinal(d, true);
+// la imagen: en JPEG pesa la décima parte que en PNG
+const dibujaFinal = (d) => cargaFinal(d).then((im) => new Promise((ok) => im.fin.toBlob(ok, 'image/jpeg', .92)));
 // ponytail: la imagen se vuelve a armar cada vez que cambia lo que dice el resultado; es un lienzo chico, no hace falta guardar más de una
 let IMG = { k: null, blob: undefined, p: null };
 function preparaImagen(g) {
@@ -2135,7 +2403,7 @@ function preparaImagen(g) {
 }
 function copiaTexto(txt, gid) { const fin = () => { st.copiado = gid; pintar(); setTimeout(() => { st.copiado = null; pintar(); }, 2500); };
   return navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(txt).then(fin, () => {}) : Promise.resolve(); }
-function compartir(gid) {
+function compartirImagen(gid) {
   const g = JUEGOS.find((x) => x.id === gid); if (!g) return;
   const d = datosFinal(g), txt = textoFinal(d), lista = IMG.k === JSON.stringify(d) && IMG.blob !== undefined;
   const manda = (b) => { let f = null; try { f = b ? new File([b], `belugas-${d.nos}-${d.ellos}.jpg`, { type: 'image/jpeg' }) : null; } catch { /* teléfono viejo: va el texto */ }
@@ -2145,6 +2413,66 @@ function compartir(gid) {
   let sale; try { sale = lista ? manda(IMG.blob) : preparaImagen(g).then(manda); } catch (e) { sale = Promise.reject(e); }
   Promise.resolve(sale).catch((e) => { if (!e || e.name !== 'AbortError') return copiaTexto(txt, gid); }); // AbortError = cerró el menú sin mandar
 }
+// ¿este teléfono puede grabar el video? El iPhone lo hace en mp4; Chrome, en mp4 o webm. Sin eso, «Compartir» manda la imagen como antes
+const TIPO_VIDEO = (() => { try { if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return null;
+  return ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find((t) => MediaRecorder.isTypeSupported(t)) || null; } catch { return null; } })();
+// el video se graba en vivo (10 s) en un lienzo que se ve en la hoja con su barrita de avance; al terminar se ve el video ya hecho. Se
+// guarda el último: volver a tocar «Compartir» en ese partido lo abre sin grabar otra vez. el = lo que se ve (lienzo o video)
+let VID = null;
+async function hazVideo(gid) {
+  const g = JUEGOS.find((x) => x.id === gid); if (!g) return;
+  const d = datosFinal(g), k = JSON.stringify(d);
+  st.hoja = 'video';
+  if (VID && VID.k === k && VID.blob) return;
+  if (VID && VID.url) URL.revokeObjectURL(VID.url);
+  const yo = VID = { gid, k, p: 0 };
+  const sigue = () => VID === yo && st.hoja === 'video';
+  try {
+    const im = await cargaVideo(d); if (!sigue()) throw 0;
+    const cv = Object.assign(document.createElement('canvas'), { width: VW, height: VH }), x = cv.getContext('2d'), dur = durVideo(d);
+    dibujaCuadro(x, d, im, 0); yo.el = cv; pintar();
+    const flujo = cv.captureStream(30); let rec; try { rec = new MediaRecorder(flujo, { mimeType: TIPO_VIDEO, videoBitsPerSecond: 8e6 }); } catch { rec = new MediaRecorder(flujo); }
+    const partes = [], paro = new Promise((ok) => { rec.onstop = ok; });
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) partes.push(e.data); };
+    rec.start(250);
+    // cada cuadro se pinta con el segundo de verdad; si la app se fue al fondo (el cuadro tardó mucho), el video se corta y se vuelve a hacer
+    const t0 = performance.now(); let antes = t0, corte = false;
+    await new Promise((ok) => { const paso = (ahora) => { ahora = ahora || performance.now(); if (!sigue()) return ok();
+      if (ahora - antes > 700) { corte = true; return ok(); } antes = ahora;
+      const t = Math.max(0, (ahora - t0) / 1000); dibujaCuadro(x, d, im, Math.min(t, dur)); yo.p = Math.min(1, t / dur);
+      const b = document.querySelector('.vid-avance i'); if (b) b.style.width = (yo.p * 100).toFixed(1) + '%';
+      if (t < dur + .25) requestAnimationFrame(paso); else ok(); };
+    requestAnimationFrame(paso); });
+    rec.stop(); await paro; flujo.getTracks().forEach((k) => k.stop());
+    if (!sigue()) throw 0;
+    if (corte) { yo.corte = true; yo.el = null; pintar(); return; }
+    const blob = new Blob(partes, { type: (rec.mimeType || TIPO_VIDEO).split(';')[0] }); if (!blob.size) throw new Error('vacío');
+    const v = document.createElement('video'); yo.blob = blob; yo.url = URL.createObjectURL(blob);
+    Object.assign(v, { src: yo.url, muted: true, loop: true, autoplay: true, playsInline: true }); v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+    yo.el = v; pintar();
+  } catch { if (VID === yo) { if (st.hoja === 'video') { yo.fallo = true; yo.el = null; pintar(); } else VID = null; } }
+}
+// el video ya hecho al menú de compartir (iOS pide un toque nuevo: por eso es otro botón); sin menú (computadora), se descarga
+function compartirVideo() {
+  const yo = VID; if (!yo || !yo.blob) return;
+  const g = JUEGOS.find((x) => x.id === yo.gid), ext = /mp4/.test(yo.blob.type) ? 'mp4' : 'webm', nombre = `belugas-${g ? `${g.nos}-${g.ellos}` : 'partido'}.${ext}`;
+  let f = null; try { f = new File([yo.blob], nombre, { type: yo.blob.type }); } catch { /* teléfono viejo */ }
+  if (f && navigator.canShare && navigator.canShare({ files: [f] })) return navigator.share({ files: [f] }).catch(() => {});
+  const a = Object.assign(document.createElement('a'), { href: yo.url, download: nombre }); document.body.append(a); a.click(); a.remove();
+}
+const compartir = (gid) => (TIPO_VIDEO ? hazVideo(gid) : compartirImagen(gid));
+// la hoja del video: arriba el video (o el lienzo mientras se graba), abajo los dos botones
+// en teléfonos angostos (320) los botones dicen solo «Imagen» y «Video» (encoge() cambia al texto corto si no cabe)
+const corto = (t, c) => `<span class="corta" data-alt='${JSON.stringify([c])}'>${t}</span>`;
+function hojaVideo() {
+  const v = VID || {}, listo = !!v.blob, gid = v.gid;
+  const tit = listo ? 'El video del partido' : v.fallo ? 'No se pudo hacer el video' : v.corte ? 'Se cortó el video' : 'Haciendo el video…';
+  const nota = v.fallo ? '<p>Este teléfono no pudo grabarlo. La imagen del partido sí está lista.</p>' : v.corte ? '<p>La app se fue al fondo mientras se grababa. Vuelve a hacerlo sin salirte.</p>' : '';
+  return `<h3>${tit}</h3>${nota}${v.fallo || v.corte ? '' : `<div class="vid-caja"></div>${listo ? '' : '<div class="vid-avance"><i></i></div>'}`}
+    <div class="ops dos vid-ops"><button class="op" data-a="compimg" data-v="${gid}">${st.copiado === gid ? 'Copiado' : corto('Compartir imagen', 'Imagen')}</button>${v.corte ? `<button class="op prim" data-a="hazvideo" data-v="${gid}">${corto('Hacerlo otra vez', 'Otra vez')}</button>` : v.fallo ? '' : `<button class="op prim" data-a="compvid"${listo ? '' : ' disabled'}>${corto('Compartir video', 'Video')}</button>`}</div>`;
+}
+// después de cada repintado el video (o el lienzo que se graba) vuelve a su caja: es el mismo elemento, así no se corta la grabación
+function montaVideo(t) { const c = st.hoja === 'video' && VID && VID.el && t.querySelector('.vid-caja'); if (c) { c.append(VID.el); const b = t.querySelector('.vid-avance i'); if (b) b.style.width = (VID.p * 100).toFixed(1) + '%'; if (VID.el.play) VID.el.play().catch(() => {}); } }
 // arriba de las hojas de llenar: ✕ quita lo que se está poniendo y ✓ lo confirma (en «¿Quién?» tocar a alguien ya guarda: sin «No sé»)
 const X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>', PALOMITA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 // «¿Quiénes vinieron?»: el círculo con su palomita (o vacío) dibujado entero en un SVG, para que nunca salga un cuadro
@@ -2236,6 +2564,7 @@ function hoja() {
         ${cuantos ? `<h4 class="sub">${pregunta(j.k)}</h4>${porLados(cuantos, j.lado, (id) => botonPj(id, 'cquien', id === j.id), ' chicos')}` : ''}`;
     }
   }
+  if (st.hoja === 'video') h = hojaVideo();
   if (st.hoja === 'mas') h = `<h3>Más opciones</h3><div class="mk-tiras">${MK_MAS[st.partido.lado].map((k) => mkBoton(k, 'mk-tira')).join('')}</div>`;
   if (st.hoja === 'cqp') {
     const j = st.partido.jugadas[st.edita], O = j.lado === 'O';
@@ -2315,6 +2644,7 @@ function pintar() {
   mcabHtml = mcHtml;
   t.querySelectorAll('img').forEach((i) => { const v = (imgs[i.outerHTML] || []).shift(); if (v) i.replaceWith(v); });
   montaAgua(t);
+  montaVideo(t); // el video de «Compartir» (o el lienzo que se está grabando) vuelve a su caja
   t.classList.toggle('ancha', ['metricas', 'jugador', 'partido'].includes(st.pant)); // en iPad, los widgets a dos columnas
   t.classList.toggle('ancha2', ['inicio', 'partidos', 'jugadores'].includes(st.pant)); // y las listas de Inicio, Partidos y Jugadores
   graficasTras(t);
@@ -3033,6 +3363,7 @@ const A = {
   },
   empezar: () => empezar(),
   compartir: (v) => compartir(v),
+  compimg: (v) => compartirImagen(v), compvid: () => compartirVideo(), hazvideo: (v) => hazVideo(v),
   rivalver: (v) => { st.vanDe = v; st.hoja = 'rival'; },
   rival: (v) => { HOY = v; if (st.vanDe === 'empezar') { st.vanDe = null; st.hoja = null; empezar(); return; }
     st.hoja = st.vanDe || 'editar'; if (st.partido) { st.partido.rival = v; st.partido.metaVer = Date.now(); rehacer(st.partido); subir(); } },

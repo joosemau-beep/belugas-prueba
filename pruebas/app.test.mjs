@@ -2236,3 +2236,62 @@ test('iPad parado: una columna (campo, botones y la lista); las jugadas paso a p
   assert.deepEqual(pg.errores, []);
   await pg.context().close();
 });
+
+test('«Compartir» hace el video del partido (resultado, los 3 que más sumaron y el podio) y lo enseña antes de mandarlo; la imagen del podio sale desde la misma hoja y es la de respaldo sin grabadora', async () => {
+  const pg = await telefono(srv.url);
+  // cada cuadro se puede pintar en cualquier segundo, para los partidos de solo marcador (los de antes), un empate y los marcados
+  const cuadros = () => pg.evaluate(async () => { const c = Object.assign(document.createElement('canvas'), { width: VW, height: VH }), x = c.getContext('2d'), o = [];
+    for (const g of JUEGOS) { const d = datosFinal(g), im = await cargaVideo(d), e = { ...d, ellos: d.nos };
+      for (const t of [0, 1.3, 2.7, 3.7, 5.5, 8, 9.5, 20]) { dibujaCuadro(x, d, im, t); dibujaCuadro(x, e, im, t); }
+      o.push([g.id, d.jug.length, Math.round(durVideo(d) * 10) / 10]); }
+    return o; });
+  const solos = await cuadros();
+  assert.ok(solos.length >= 1 && solos.every(([, n, dur]) => n === 0 && dur === 5.6), JSON.stringify(solos)); // solo marcador: resultado y podio
+  await sembrar(pg, true);
+  const todos = await cuadros();
+  assert.ok(todos.some(([id, n, dur]) => id === 'g4' && n === 3 && dur === 10.4), JSON.stringify(todos)); // ~10 s: 3.5 + 3 × 1.6 + 0.45 + 1.6
+  assert.deepEqual(pg.errores, []);
+  // el menú de compartir del teléfono, de mentiras: apunta lo que se le manda
+  await pg.evaluate(() => { window.__mandado = []; navigator.canShare = () => true; navigator.share = async (o) => { window.__mandado.push((o.files || []).map((f) => [f.name, f.type])); }; });
+  await toca(pg, 'ir', 'partidos'); await toca(pg, 'juego', 'g4'); await toca(pg, 'compartir', 'g4');
+  // mientras se graba: el lienzo con su avance, «Compartir video» apagado y la imagen ya se puede mandar
+  await pg.waitForSelector('#tel .hoja .vid-caja canvas');
+  assert.match(await pg.locator('#tel .hoja h3').innerText(), /Haciendo el video/);
+  assert.ok(await pg.locator('#tel .hoja [data-a="compvid"]').isDisabled());
+  await pg.waitForTimeout(1500);
+  const avance = await pg.evaluate(() => parseFloat(document.querySelector('.vid-avance i').style.width));
+  assert.ok(avance > 5 && avance < 60, String(avance));
+  await toca(pg, 'compimg', 'g4');
+  assert.deepEqual(await pg.evaluate(() => window.__mandado), [[['belugas-33-12.jpg', 'image/jpeg']]]);
+  // repintar (como cada 4 s al sincronizar) no corta la grabación: el lienzo es el mismo y sigue en su caja
+  await pg.evaluate(() => { window.__lienzo = document.querySelector('.vid-caja canvas'); pintar(); });
+  assert.ok(await pg.evaluate(() => document.querySelector('.vid-caja canvas') === window.__lienzo));
+  // al terminar se ve el video ya hecho y «Compartir video» lo manda
+  await pg.waitForSelector('#tel .hoja .vid-caja video', { timeout: 30000 });
+  assert.match(await pg.locator('#tel .hoja h3').innerText(), /El video del partido/);
+  const v = await pg.evaluate(() => ({ tam: VID.blob.size, tipo: VID.blob.type }));
+  assert.match(v.tipo, /^video\/(mp4|webm)$/); assert.ok(v.tam > 100000, String(v.tam));
+  await toca(pg, 'compvid');
+  const ext = v.tipo.split('/')[1];
+  assert.deepEqual((await pg.evaluate(() => window.__mandado))[1], [[`belugas-33-12.${ext}`, v.tipo]]);
+  // cerrar y volver a tocar «Compartir»: el mismo video, sin grabar otra vez
+  await equis(pg); await toca(pg, 'compartir', 'g4');
+  assert.equal(await pg.locator('#tel .hoja .vid-caja video').count(), 1);
+  // cerrar a media grabación la para y no deja nada
+  await equis(pg); await toca(pg, 'ir', 'partidos'); await toca(pg, 'juego', 'g7'); await toca(pg, 'compartir', 'g7');
+  await pg.waitForSelector('#tel .hoja .vid-caja canvas'); await equis(pg); await pg.waitForTimeout(400);
+  assert.equal(await pg.evaluate(() => VID), null);
+  assert.deepEqual(pg.errores, []);
+  await pg.context().close();
+  // sin grabadora (teléfono viejo): «Compartir» manda la imagen del podio en el mismo toque, sin hoja
+  const sin = await telefono(srv.url);
+  await sin.context().addInitScript(() => { delete window.MediaRecorder; }); await sin.reload(); await sin.waitForSelector('#tel .nav'); await sembrar(sin, true);
+  await sin.evaluate(() => { window.__mandado = []; navigator.canShare = () => true; navigator.share = async (o) => { window.__mandado.push((o.files || []).map((f) => [f.name, f.type])); }; });
+  await toca(sin, 'ir', 'partidos'); await toca(sin, 'juego', 'g7'); await sin.waitForTimeout(800); await toca(sin, 'compartir', 'g7');
+  await sin.waitForTimeout(500);
+  assert.equal(await sin.evaluate(() => TIPO_VIDEO), null);
+  assert.deepEqual(await sin.evaluate(() => window.__mandado), [[['belugas-6-13.jpg', 'image/jpeg']]]);
+  assert.equal(await sin.locator('#tel .hoja').count(), 0);
+  assert.deepEqual(sin.errores, []);
+  await sin.context().close();
+});
