@@ -2164,6 +2164,10 @@ function fondoCarta(im, id, nom, w, h, est) {
   const f = im.cara[id];
   if (f) x.drawImage(capaFoto(f, w, fh, { abajo: .32 }), 0, 0);
   else { x.fillStyle = 'rgba(255,255,255,.12)'; x.beginPath(); x.arc(w / 2, fh * .5, w * .3, 0, 7); x.fill(); kit(x).txt(iniciales(nom), w / 2, fh * .5 + w * .1, `800 ${w * .26}px Inter`); }
+  // la luz del color de su nivel alrededor de la cara: por dentro también se nota qué tarjeta es (la de plata se queda marina)
+  const luz = { hielo: '120,205,255', oro: '255,186,60', morada: '150,90,255' }[est];
+  if (luz) { g = x.createRadialGradient(w / 2, fh * .42, w * .3, w / 2, fh * .42, w * .86); g.addColorStop(0, `rgba(${luz},0)`); g.addColorStop(1, `rgba(${luz},.5)`); x.fillStyle = g; x.fillRect(0, 0, w, h); }
+  g = x.createLinearGradient(0, fh * .78, 0, h); g.addColorStop(0, 'rgba(7,12,30,0)'); g.addColorStop(.45, 'rgba(7,12,30,.72)'); g.addColorStop(1, 'rgba(7,12,30,.82)'); x.fillStyle = g; x.fillRect(0, fh * .78, w, h); // abajo oscuro: el texto se lee
   return c[k] = o;
 }
 // una tarjeta con el centro en (0, 0) del lienzo ya movido, w de ancho (alto 1.4 w); lineas = [nombre, lo que hizo]; t mueve brillos y aurora;
@@ -2208,12 +2212,12 @@ function carta(x, im, p, cx, cy, w, est, t, lineas) {
     x.restore();
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy], i) => copo(sx * (w / 2 - b * 1.6), sy * (h / 2 - b * 1.6), w * .045, i * .4 + t * .4)); }
   // la placa del nombre, lo que hizo y el año
-  const py = h / 2 - b - h * .3, ph = h * .12; g = x.createLinearGradient(0, py, 0, py + ph); C.metal.forEach((c0, i) => g.addColorStop(i / 2, c0));
+  const py = h / 2 - b - h * .32, ph = h * .13; g = x.createLinearGradient(0, py, 0, py + ph); C.metal.forEach((c0, i) => g.addColorStop(i / 2, c0));
   x.fillStyle = g; x.beginPath(); x.moveTo(-w / 2 + b, py); x.lineTo(w / 2 - b, py); x.lineTo(w / 2 - b - ph * .5, py + ph); x.lineTo(-w / 2 + b + ph * .5, py + ph); x.closePath(); x.fill();
   if (est === 'morada') { x.strokeStyle = 'rgba(155,107,255,.9)'; x.lineWidth = 2; x.stroke(); }
-  txt(K.cabe(lineas[0], `italic 900 ${ph * .82}px ${DISP}`, w - 3 * b - ph), 0, py + ph * .8, `italic 900 ${ph * .82}px ${DISP}`, est === 'morada' ? '#ffffff' : '#0b1838', 'center', 1);
-  if (lineas[1]) txt(lineas[1], 0, py + ph + h * .085, K.ajusta(lineas[1], `italic 900 #px ${DISP}`, w - 3 * b, Math.round(h * .072), 1), C.fino, 'center', 1);
-  txt('BELUGAS HDP · 2026', 0, h / 2 - b - h * .035, `800 ${Math.max(9, Math.round(w * .036))}px Inter`, 'rgba(214,228,247,.55)', 'center', 3);
+  txt(lineas[0], 0, py + ph * .8, K.ajusta(lineas[0], `italic 900 #px ${DISP}`, w - 3 * b - ph, Math.round(ph * .82), 1), est === 'morada' ? '#ffffff' : '#0b1838', 'center', 1);
+  if (lineas[1]) txt(lineas[1], 0, py + ph + h * .095, K.ajusta(lineas[1], `italic 900 #px ${DISP}`, w - 3 * b, Math.round(h * .086), 1), C.fino, 'center', 1);
+  txt(im.pie || 'BELUGAS HDP · 2026', 0, h / 2 - b - h * .03, `800 ${Math.max(9, Math.round(w * .04))}px Inter`, 'rgba(214,228,247,.6)', 'center', 3); // de qué partido es la tarjeta
   if (im.lb) x.drawImage(im.lb, -w / 2 + b + 8, -h / 2 + b + 8, w * .17, w * .17 * im.lb.height / im.lb.width);
   if (p.corona && im.corona) { const cw = w * .3, ch = cw * im.corona.height / im.corona.width; x.drawImage(im.corona, -cw / 2, -h / 2 - ch * .55, cw, ch); }
   // solo las dos más altas brillan (Mau, 24-nov): una luz que recorre la orilla, destellos en ella y el barrido de brillo
@@ -2259,7 +2263,7 @@ function fondoSeccion(x, d, im, tit, u, sub) {
 function pintaSeccion(x, d, im, [tit, filas], u) {
   const at = tit === 'ATAQUE', t = Math.min(u, 8);
   fondoSeccion(x, d, im, tit, u, at ? 'LOS QUE HICIERON PUNTOS' : 'LO MEJOR DE LA DEFENSA');
-  const l = genteDe(filas).slice(0, 6), dosF = l.length > 3, CW = dosF ? 258 : l.length > 2 ? 300 : 330, CH = CW * 1.4, gap = 26, alto = (dosF ? 2 : 1) * CH + (dosF ? gap : 0), ytop = 440 + Math.max(0, (1250 - 440 - alto) / 2), mitad = Math.ceil(l.length / 2);
+  const l = genteDe(filas).slice(0, 6), dosF = l.length > 3, CW = dosF ? (l.length === 4 ? 290 : 270) : [0, 440, 400, 322][l.length], CH = CW * 1.4, gap = 26, alto = (dosF ? 2 : 1) * CH + (dosF ? gap : 0), ytop = 440 + Math.max(0, (1250 - 440 - alto) / 2), mitad = Math.ceil(l.length / 2);
   l.forEach((p, k) => { const fila = dosF && k >= mitad ? 1 : 0, n = dosF ? (fila ? l.length - mitad : mitad) : l.length, kk = fila ? k - mitad : k, cx = VW / 2 - (n * CW + (n - 1) * gap) / 2 + kk * (CW + gap) + CW / 2, cy = ytop + fila * (CH + gap) + CH / 2;
     const e = tramo(u, .35 + k * .16, .8 + k * .16); if (e <= 0) return; const tono = CATEGORIA(d.pts[p.id] || 0);
     x.save(); x.translate(cx, cy + Math.sin(t * 2 + k) * 4); x.rotate((k % 2 ? 1 : -1) * .04); x.scale(e < .5 ? .02 + e * 1.96 : 1, 1);
@@ -2291,27 +2295,31 @@ function pintaResumen(x, d, im, u = 99, tv = null) {
   if (!d.jug.length) txt('SOLO SE REGISTRÓ EL MARCADOR', VW / 2, 860, '800 24px Inter', 'rgba(214,228,247,.6)', 'center', 5);
   else { txt('LOS QUE MÁS SUMARON', VW / 2, 640, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6);
     // el podio: el primero al centro, más grande, más arriba y con corona; entran del tercero al primero, volteándose
-    [[1, 2], [0, 1], [2, 3]].filter(([i]) => d.jug[i]).forEach(([i, n]) => { const j = d.jug[i], w = n === 1 ? 300 : 262, cx = VW / 2 + (n === 1 ? 0 : n === 2 ? -310 : 310), cy = (n === 1 ? 720 : 770) + w * .7;
+    [[1, 2], [0, 1], [2, 3]].filter(([i]) => d.jug[i]).forEach(([i, n]) => { const j = d.jug[i], { w, cx, cy } = PODIO(n);
       const e = tramo(u, .3 + (3 - n) * .2, .75 + (3 - n) * .2); if (e <= 0) return;
       x.save(); x.translate(cx, cy); x.scale(e < .5 ? .02 + e * 1.96 : 1, 1); carta(x, im, { ...j, corona: n === 1 }, 0, 0, w, CATEGORIA(j.pts), t, [j.nom.toUpperCase(), `${j.pts} PTS`]); x.restore();
       x.save(); x.globalAlpha = frena(tramo(u, .6 + (3 - n) * .2, .9 + (3 - n) * .2)); txt(`${n}º`, cx, cy + w * .7 + 54, `italic 900 54px ${DISP}`, n === 1 ? '#f6c453' : '#d6e4f7'); x.restore(); }); }
 }
 // ---------- el desfile (Mau, 24-nov): pasan las tarjetas de todos los que jugaron, de derecha a izquierda, del que menos sumó al que más; al pasar
 // por el centro se agrandan. Las 3 que más sumaron entran al final y vuelan a su lugar del podio, donde se queda el resumen ----------
-const PODIO = (n) => { const w = n === 1 ? 300 : 262; return { w, cx: VW / 2 + (n === 1 ? 0 : n === 2 ? -310 : 310), cy: (n === 1 ? 720 : 770) + w * .7 }; };
+const PODIO = (n) => { const w = n === 1 ? 330 : 280; return { w, cx: VW / 2 + (n === 1 ? 0 : n === 2 ? -325 : 325), cy: (n === 1 ? 720 : 770) + w * .7 }; };
 const restoDe = (d) => d.todos.filter((p) => !d.jug.some((j) => j.id === p.id));
 const durDesfile = (d) => (d.jug.length ? restoDe(d).length * .3 + 1.4 + d.jug.length * .45 + .5 : 0);
 function pintaDesfile(x, d, im, u, t) {
-  const { txt } = kit(x), resto = restoDe(d), Y = 900, va = (k) => k * .3, D = durDesfile(d);
+  const { txt } = kit(x), resto = restoDe(d), Y = 935, va = (k) => k * .3, D = durDesfile(d), al = frena(tramo(u, D - .6, D - .1));
   fondoResumen(x, d, im, t);
-  const una = (p, n, cx, cy, w) => { x.save(); x.translate(cx, cy); carta(x, im, { ...p, corona: n === 1 }, 0, 0, w, CATEGORIA(p.pts), t, [p.nom.toUpperCase(), `${p.pts} PTS`]); x.restore(); };
-  resto.forEach((p, k) => { const v = (u - va(k)) / 1.4; if (v <= 0 || v >= 1) return; const cx = VW + 200 - (VW + 400) * v; una(p, 0, cx, Y, 200 + 90 * (1 - Math.min(1, Math.abs(cx - VW / 2) / (VW / 2)))); });
+  // el título y una luz al centro, por donde pasa cada tarjeta
+  x.save(); x.globalAlpha = frena(tramo(u, .1, .5)) * (1 - al); txt('TODOS LOS QUE JUGARON', VW / 2, 640, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6); x.restore();
+  x.save(); x.globalCompositeOperation = 'lighter'; x.globalAlpha = 1 - al; const gl = x.createRadialGradient(VW / 2, Y, 0, VW / 2, Y, 430); gl.addColorStop(0, 'rgba(90,174,255,.2)'); gl.addColorStop(1, 'rgba(90,174,255,0)'); x.fillStyle = gl; x.fillRect(0, Y - 430, VW, 860); x.restore();
+  // el que no sumó (o quedó en negativo) pasa solo con su nombre
+  const una = (p, n, cx, cy, w) => { x.save(); x.translate(cx, cy); carta(x, im, { ...p, corona: n === 1 }, 0, 0, w, CATEGORIA(p.pts), t, [p.nom.toUpperCase(), p.pts > 0 ? `${p.pts} PTS` : '']); x.restore(); };
+  resto.forEach((p, k) => { const v = (u - va(k)) / 1.4; if (v <= 0 || v >= 1) return; const cx = VW + 200 - (VW + 400) * v; una(p, 0, cx, Y, 220 + 110 * (1 - Math.min(1, Math.abs(cx - VW / 2) / (VW / 2)))); });
   const t3 = va(resto.length) + .3;
   d.jug.slice(0, 3).map((j, i) => [j, i + 1]).reverse().forEach(([j, n], k) => { const t0 = t3 + k * .45, v = tramo(u, t0, t0 + .7); if (v <= 0) return; const P0 = PODIO(n);
-    if (v < .5) { const e = frena(tramo(v, 0, .5)); una(j, n, VW + 200 - (VW / 2 + 200) * e, Y, 200 + 90 * e); }
-    else { const e = suave(tramo(v, .5, 1)); una(j, n, VW / 2 + (P0.cx - VW / 2) * e, Y + (P0.cy - Y) * e, 290 + (P0.w - 290) * e); } });
+    if (v < .5) { const e = frena(tramo(v, 0, .5)); una(j, n, VW + 200 - (VW / 2 + 200) * e, Y, 220 + 110 * e); }
+    else { const e = suave(tramo(v, .5, 1)); una(j, n, VW / 2 + (P0.cx - VW / 2) * e, Y + (P0.cy - Y) * e, 330 + (P0.w - 330) * e); } });
   // al final aparecen el título y los lugares, como en el resumen
-  const al = frena(tramo(u, D - .6, D - .1)); if (al > 0) { x.save(); x.globalAlpha = al; txt('LOS QUE MÁS SUMARON', VW / 2, 640, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6);
+  if (al > 0) { x.save(); x.globalAlpha = al; txt('LOS QUE MÁS SUMARON', VW / 2, 640, '800 24px Inter', 'rgba(214,228,247,.75)', 'center', 6);
     d.jug.slice(0, 3).forEach((j, i) => { const P0 = PODIO(i + 1); txt(`${i + 1}º`, P0.cx, P0.cy + P0.w * .7 + 54, `italic 900 54px ${DISP}`, i === 0 ? '#f6c453' : '#d6e4f7'); }); x.restore(); }
 }
 // ---------- piezas que se mueven ----------
@@ -2418,15 +2426,15 @@ function escenaResultado(x, d, im, t) {
   // el marcador sube de 0 al final
   const pm = tramo(t, .55, 1.55), am = frena(tramo(t, .5, .75));
   x.save(); x.globalAlpha = am; x.shadowColor = 'rgba(0,0,0,.4)'; x.shadowBlur = 36; x.shadowOffsetY = 10;
-  const fm = `italic 900 300px ${DISP}`; txt(cuenta(d.nos, pm), VW / 2 - 70, 898, fm, '#fff', 'right'); txt(cuenta(d.ellos, pm), VW / 2 + 70, 898, fm, gana ? 'rgba(214,228,247,.82)' : '#fff', 'left');
-  x.fillStyle = '#fff'; x.beginPath(); x.moveTo(VW / 2 - 40, 790); x.lineTo(VW / 2 + 46, 790); x.lineTo(VW / 2 + 40, 820); x.lineTo(VW / 2 - 46, 820); x.fill(); x.restore();
+  const fm = `italic 900 300px ${DISP}`; txt(cuenta(d.nos, pm), VW / 2 - 110, 898, fm, '#fff', 'right'); txt(cuenta(d.ellos, pm), VW / 2 + 110, 898, fm, gana ? 'rgba(214,228,247,.82)' : '#fff', 'left');
+  x.fillStyle = '#fff'; x.beginPath(); x.moveTo(VW / 2 - 34, 790); x.lineTo(VW / 2 + 40, 790); x.lineTo(VW / 2 + 34, 820); x.lineTo(VW / 2 - 40, 820); x.fill(); x.restore();
   // ganando: el trazo azul alrededor de nuestro número y la corona; perdiendo, una raya roja corta bajo el de ellos (empate: nada)
   const wn = K.ancho(String(d.nos), fm);
-  if (gana) { const pc = frena(tramo(t, 2.62, 3.05)); if (pc > 0) { x.save(); x.translate(VW / 2 - 70 - wn / 2, 790); x.rotate(-.1); x.beginPath(); x.ellipse(0, 0, wn / 2 + 70, 150, 0, Math.PI * .95, Math.PI * .95 + Math.PI * 2 * pc * .97);
+  if (gana) { const pc = frena(tramo(t, 2.62, 3.05)); if (pc > 0) { x.save(); x.translate(VW / 2 - 110 - wn / 2, 790); x.rotate(-.1); x.beginPath(); x.ellipse(0, 0, wn / 2 + 52, 156, 0, Math.PI * .95, Math.PI * .95 + Math.PI * 2 * pc * .97);
       x.lineWidth = 16; x.lineCap = 'round'; x.strokeStyle = '#3f8fe6'; x.shadowColor = 'rgba(63,143,230,.8)'; x.shadowBlur = 24; x.stroke(); x.restore(); }
     const pk = tramo(t, 2.75, 3.15); if (pk > 0 && im.corona) { const cw = 210, ch = cw * im.corona.height / im.corona.width, cy = 680 - (1 - rebota(pk)) * 260;
-      x.save(); x.globalAlpha = lim(pk * 4); x.translate(VW / 2 - 70 - wn / 2 - (wn / 2 + 70) * .62, cy); x.rotate(-.32); x.drawImage(im.corona, -cw / 2, -ch / 2, cw, ch); x.restore(); } }
-  else if (d.nos < d.ellos) { const pc = frena(tramo(t, 1.9, 2.3)), we = K.ancho(String(d.ellos), fm); if (pc > 0) { x.fillStyle = '#ff6b5e'; x.beginPath(); x.roundRect(VW / 2 + 70, 922, we * pc, 12, 6); x.fill(); } }
+      x.save(); x.globalAlpha = lim(pk * 4); x.translate(VW / 2 - 110 - wn / 2 - (wn / 2 + 52) * .7, cy); x.rotate(-.32); x.drawImage(im.corona, -cw / 2, -ch / 2, cw, ch); x.restore(); } }
+  else if (d.nos < d.ellos) { const pc = frena(tramo(t, 1.9, 2.3)), we = K.ancho(String(d.ellos), fm); if (pc > 0) { x.fillStyle = '#ff6b5e'; x.beginPath(); x.roundRect(VW / 2 + 110, 922, we * pc, 12, 6); x.fill(); } }
   // la franja del resultado
   const pv = gana ? frena(tramo(t, 2.55, 2.85)) : frena(tramo(t, 1.75, 2.25));
   const sacude = gana ? Math.sin(t * 90) * 10 * (1 - tramo(t, 2.6, 2.9)) * (t > 2.6 ? 1 : 0) : 0;
@@ -2479,7 +2487,18 @@ function dibujaCuadro(x, d, im, t) {
     else sec(k, u); }
   else { const u = t - R0;
     if (u < OLA_S) { antes(); olaPasa(x, t, u / OLA_S, () => fin(u)); } else if (u < DD) fin(u); else if (DD) quieto(); else fin(u); }
+  if (im.grano) x.drawImage(im.grano, 0, 0);
   x.restore();
+}
+// el acabado de todo el video (y de la imagen): esquinas un poco más oscuras y un grano fino, quieto, para que los degradados oscuros no se
+// vean planos ni en escalones al comprimirse. Se hace una vez (el grano a media medida) y se pone encima de cada cuadro
+function granoVideo() {
+  const o = Object.assign(document.createElement('canvas'), { width: VW, height: VH }), c = o.getContext('2d'), g = c.createRadialGradient(VW / 2, VH * .46, VH * .36, VW / 2, VH * .46, VH * .86);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.34)'); c.fillStyle = g; c.fillRect(0, 0, VW, VH);
+  const n = Object.assign(document.createElement('canvas'), { width: VW / 2, height: VH / 2 }), nc = n.getContext('2d'), id = nc.createImageData(n.width, n.height), a = azar(1);
+  for (let i = 0; i < id.data.length; i += 4) { const v = a() < .5 ? 0 : 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = a() * 13; }
+  nc.putImageData(id, 0, 0); c.drawImage(n, 0, 0, VW, VH);
+  return o;
 }
 // lo que se carga una vez: letras, logos, corona y las fotos de los 3 que más sumaron; el resumen ya pintado (fin), que es la imagen. Para el
 // video, además, la beluga y las fotos de todos los que jugaron (la imagen sola no las espera)
@@ -2488,7 +2507,8 @@ async function cargaFinal(d, video) {
   const r = R(d.rival), ids = !video ? d.jug.map((j) => j.id) : [...new Set([...d.jug.map((j) => j.id), ...d.todos.map((j) => j.id), ...seccionesDe(d).flatMap(([, f]) => f.flatMap(([, gt]) => gt.map((p) => p.id)))])];
   const [lb, lr, corona, bel, ...fotos] = await Promise.all([cargaImg(LOGO), r.logo ? cargaImg(r.logo) : null, cargaImg(CORONA), video ? cargaImg(BELUGA_IMG) : null, ...ids.map((id) => (P(id) && P(id).cara ? cargaImg(P(id).cara) : null))]);
   const im = { r, lb, lr, corona, beluga: bel, cara: Object.fromEntries(ids.map((id, i) => [id, fotos[i]])) }, fin = Object.assign(document.createElement('canvas'), { width: VW, height: VH });
-  pintaResumen(fin.getContext('2d'), d, im); im.fin = fin;
+  im.pie = `VS ${d.rivalCorto.toUpperCase()} · ${d.fecha.toUpperCase()}`; im.grano = granoVideo();
+  pintaResumen(fin.getContext('2d'), d, im); fin.getContext('2d').drawImage(im.grano, 0, 0); im.fin = fin;
   return im;
 }
 const cargaVideo = (d) => cargaFinal(d, true);
