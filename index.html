@@ -2175,7 +2175,7 @@ function carta(x, im, p, cx, cy, w, est, t, lineas) {
   let g;
   if (est === 'morada') { // el aura: cortinas de aurora moradas que salen por toda la carta (arriba, abajo y a los lados), con su resplandor y chispas
     x.save(); x.shadowColor = `rgba(155,90,255,${.6 + .2 * Math.sin(t * 3)})`; x.shadowBlur = w * .1; x.fillStyle = 'rgba(40,15,80,.9)'; x.beginPath(); x.roundRect(-w / 2, -h / 2, w, h, R); x.fill(); x.restore();
-    x.save(); x.globalCompositeOperation = 'lighter'; const cols = ['167,123,255', '190,110,255', '130,70,230', '210,140,255'], top = -h * .57, bot = h * .57;
+    x.save(); x.globalCompositeOperation = 'lighter'; const cols = ['167,123,255', '190,110,255', '130,70,230', '210,140,255'], top = -h * .74, bot = h * .57; // arriba sale un poco más (Mau, 24-nov)
     for (let k = 0; k < 8; k++) { const cx0 = -w * .6 + ((k * 89 + t * 38) % (w * 1.1)), ww = w * .08 + (k % 3) * w * .04; g = x.createLinearGradient(0, top, 0, bot);
       g.addColorStop(0, `rgba(${cols[k % 4]},0)`); g.addColorStop(.18, `rgba(${cols[k % 4]},.32)`); g.addColorStop(.5, `rgba(${cols[k % 4]},.14)`); g.addColorStop(.82, `rgba(${cols[k % 4]},.32)`); g.addColorStop(1, `rgba(${cols[k % 4]},0)`);
       x.fillStyle = g; x.beginPath(); x.moveTo(cx0, top); for (let i2 = 0; i2 <= 14; i2++) x.lineTo(cx0 + Math.sin(i2 * .55 + t * 1.7 + k) * w * .035, top + i2 * (bot - top) / 14); x.lineTo(cx0 + ww, bot); for (let i2 = 14; i2 >= 0; i2--) x.lineTo(cx0 + ww + Math.sin(i2 * .55 + t * 1.7 + k + 1.3) * w * .035, top + i2 * (bot - top) / 14); x.closePath(); x.fill(); }
