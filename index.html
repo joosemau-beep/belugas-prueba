@@ -2182,7 +2182,8 @@ function carta(x, im, p, cx, cy, w, est, t, lineas) {
     for (let k = 0; k < 16; k++) { const a = azar(k + 40), sp = .25 + a() * .35, u = (t * sp + a()) % 1, px = (a() - .5) * w * 1.1 + Math.sin(t * 2 + k) * 6, py = h * .5 - u * h * 1.08; x.fillStyle = `rgba(200,160,255,${(1 - u) * .9})`; x.beginPath(); x.arc(px, py, 2 + a() * 3.5, 0, 7); x.fill(); }
     x.restore(); }
   // el marco
-  x.save(); x.shadowColor = est === 'morada' ? `rgba(155,107,255,${.6 + .25 * Math.sin(t * 3)})` : 'rgba(0,0,0,.55)'; x.shadowBlur = w * (est === 'morada' ? .14 : .1); x.shadowOffsetY = est === 'morada' ? 0 : w * .04;
+  x.save(); x.shadowColor = est === 'morada' ? `rgba(155,107,255,${.6 + .25 * Math.sin(t * 3)})` : est === 'oro' ? `rgba(255,205,90,${.55 + .25 * Math.sin(t * 3.5)})` : 'rgba(0,0,0,.55)';
+  x.shadowBlur = w * (est === 'morada' ? .14 : est === 'oro' ? .13 : .1); x.shadowOffsetY = est === 'morada' || est === 'oro' ? 0 : w * .04; // el oro también brilla alrededor
   if (est === 'oro') { g = x.createConicGradient ? x.createConicGradient(t * .9, 0, 0) : x.createLinearGradient(-w / 2, 0, w / 2, 0); ['#ffe38c', '#f6b73c', '#fff3c4', '#dd8d16', '#ffe38c'].forEach((c, i) => g.addColorStop(i / 4, c)); }
   else if (est === 'hielo') { g = x.createConicGradient ? x.createConicGradient(.6, 0, 0) : x.createLinearGradient(-w / 2, 0, w / 2, 0); ['#ffffff', '#bfe6ff', '#e9f8ff', '#8fc6e8', '#ffffff'].forEach((c, i) => g.addColorStop(i / 4, c)); }
   else if (est === 'morada') { g = x.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2); g.addColorStop(0, '#1c1430'); g.addColorStop(.5, '#050308'); g.addColorStop(1, '#1c1430'); }
@@ -2194,6 +2195,13 @@ function carta(x, im, p, cx, cy, w, est, t, lineas) {
     for (let k = 0; k < 4; k++) { const cx0 = -w / 2 + ((k * 113 + t * 55) % (w + 140)) - 70; g = x.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, 'rgba(167,123,255,0)'); g.addColorStop(.4, 'rgba(167,123,255,.4)'); g.addColorStop(1, 'rgba(130,70,230,0)'); x.fillStyle = g; x.fillRect(cx0, -h / 2, w * .2, h); }
     x.restore(); rr(4); x.lineWidth = 3; x.strokeStyle = `rgba(155,107,255,${.7 + .3 * Math.sin(t * 3)})`; x.stroke(); rr(b - 4); x.lineWidth = 2; x.strokeStyle = 'rgba(214,200,255,.55)'; x.stroke(); }
   x.drawImage(fondoCarta(im, p.id, p.nom, w - 2 * b, h - 2 * b, est), -w / 2 + b, -h / 2 + b);
+  if (est === 'hielo') { // copos de nieve de seis puntas por la orilla y más grandes en las esquinas (quietos: solo las dos más altas brillan)
+    const copo = (cx0, cy0, r, ang) => { x.save(); x.translate(cx0, cy0); x.rotate(ang); x.strokeStyle = 'rgba(255,255,255,.95)'; x.shadowColor = 'rgba(60,140,220,.9)'; x.shadowBlur = 4; x.lineWidth = Math.max(1.2, r * .13); x.lineCap = 'round';
+      for (let k = 0; k < 6; k++) { x.rotate(Math.PI / 3); x.beginPath(); x.moveTo(0, 0); x.lineTo(0, -r); x.moveTo(0, -r * .55); x.lineTo(-r * .28, -r * .78); x.moveTo(0, -r * .55); x.lineTo(r * .28, -r * .78); x.stroke(); } x.restore(); };
+    const a = azar(21), per = 2 * (w + h);
+    for (let i = 0; i < 18; i++) { const d0 = (i / 18 + a() * .03) * per, m = b * .5, [px, py] = d0 < w ? [-w / 2 + d0, -h / 2 + m] : d0 < w + h ? [w / 2 - m, -h / 2 + d0 - w] : d0 < 2 * w + h ? [w / 2 - (d0 - w - h), h / 2 - m] : [-w / 2 + m, h / 2 - (d0 - 2 * w - h)];
+      copo(Math.max(-w / 2 + m, Math.min(w / 2 - m, px)), Math.max(-h / 2 + m, Math.min(h / 2 - m, py)), w * (.022 + a() * .02), a()); }
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy], i) => copo(sx * (w / 2 - b * 1.6), sy * (h / 2 - b * 1.6), w * .045, i * .4)); }
   // la placa del nombre, lo que hizo y el año
   const py = h / 2 - b - h * .3, ph = h * .12; g = x.createLinearGradient(0, py, 0, py + ph); C.metal.forEach((c0, i) => g.addColorStop(i / 2, c0));
   x.fillStyle = g; x.beginPath(); x.moveTo(-w / 2 + b, py); x.lineTo(w / 2 - b, py); x.lineTo(w / 2 - b - ph * .5, py + ph); x.lineTo(-w / 2 + b + ph * .5, py + ph); x.closePath(); x.fill();
@@ -2206,7 +2214,7 @@ function carta(x, im, p, cx, cy, w, est, t, lineas) {
   // solo las dos más altas brillan (Mau, 24-nov): una luz que recorre la orilla, destellos en ella y el barrido de brillo
   const brilla = est === 'oro' || est === 'morada';
   if (brilla) { x.save(); rr(1, R); x.lineWidth = Math.max(4, w * .02); x.setLineDash([w * .3, w * 4.5]); x.lineDashOffset = -t * w * 1.5; x.strokeStyle = 'rgba(255,255,255,.95)'; x.shadowColor = est === 'oro' ? '#ffe38c' : '#c9a6ff'; x.shadowBlur = 18; x.stroke(); x.restore();
-    chispas(est === 'oro' ? 11 : 13, 7, '#fffbe8', est === 'oro' ? '#ffe38c' : '#c9a6ff'); }
+    chispas(est === 'oro' ? 11 : 13, est === 'oro' ? 12 : 7, '#fffbe8', est === 'oro' ? '#ffe38c' : '#c9a6ff'); }
   const s = (t * .55 + (String(p.id).length % 5) * .13) % 1.6; if (brilla && s < 1) { x.save(); rr(0, R); x.clip(); x.globalCompositeOperation = 'lighter';
     const sx = -w + 2 * w * s; g = x.createLinearGradient(sx - w * .25, -h / 2, sx + w * .25, h / 2); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, est === 'morada' ? 'rgba(200,170,255,.32)' : 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
     x.fillStyle = g; x.fillRect(-w / 2, -h / 2, w, h); x.restore(); }
