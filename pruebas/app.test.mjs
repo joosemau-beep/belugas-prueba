@@ -2237,19 +2237,24 @@ test('iPad parado: una columna (campo, botones y la lista); las jugadas paso a p
   await pg.context().close();
 });
 
-test('«Compartir» hace el video del partido (resultado, los 3 que más sumaron y el podio) y lo enseña antes de mandarlo; la imagen del podio sale desde la misma hoja y es la de respaldo sin grabadora', async () => {
+test('«Compartir» hace el video del partido (resultado, los 3 que más sumaron y al final quién hizo los TD) y lo enseña antes de mandarlo; la imagen del final sale desde la misma hoja y es la de respaldo sin grabadora', async () => {
   const pg = await telefono(srv.url);
   // cada cuadro se puede pintar en cualquier segundo, para los partidos de solo marcador (los de antes), un empate y los marcados
   const cuadros = () => pg.evaluate(async () => { const c = Object.assign(document.createElement('canvas'), { width: VW, height: VH }), x = c.getContext('2d'), o = [];
     for (const g of JUEGOS) { const d = datosFinal(g), im = await cargaVideo(d), e = { ...d, ellos: d.nos };
       for (const t of [0, 1.3, 2.7, 3.7, 5.5, 8, 9.5, 20]) { dibujaCuadro(x, d, im, t); dibujaCuadro(x, e, im, t); }
-      o.push([g.id, d.jug.length, Math.round(durVideo(d) * 10) / 10]); }
+      o.push([g.id, d.jug.length, durVideo(d), d.tds.map((t) => `${t.id}:${t.n}`).join(' '), d.tdp.map((t) => `${t.id}:${t.n}`).join(' ')]); }
     return o; });
   const solos = await cuadros();
-  assert.ok(solos.length >= 1 && solos.every(([, n, dur]) => n === 0 && dur === 5.6), JSON.stringify(solos)); // solo marcador: resultado y podio
+  // dura 3.5 s el resultado + 1.5 por jugador + 0.45 de la ola + 2.2 el final con los TD; los de solo marcador (aquí, no en la de prueba publicada), 6.15 s
+  const dura = ([, n, dur]) => Math.abs(dur - (6.15 + n * 1.5)) < .001;
+  assert.ok(solos.every(dura) && (process.env.URL || solos.every(([, n]) => n === 0)), JSON.stringify(solos));
   await sembrar(pg, true);
   const todos = await cuadros();
-  assert.ok(todos.some(([id, n, dur]) => id === 'g4' && n === 3 && dur === 10.4), JSON.stringify(todos)); // ~10 s: 3.5 + 3 × 1.6 + 0.45 + 1.6
+  assert.ok(todos.every(dura), JSON.stringify(todos));
+  // Lobos 33–12: ~10.6 s con 3 jugadores; al final, quién anotó (Nicolás 3, Juancho y Rodrigo) y quién lanzó (Mau 3, José 1)
+  const lob = todos.find(([id]) => id === 'g4'); assert.ok(dura(lob) && lob[1] === 3, JSON.stringify(lob));
+  assert.deepEqual(lob.slice(3), ['nicolas:3 juancho:1 rodrigo:1', 'mau:3 jose:1']);
   assert.deepEqual(pg.errores, []);
   // el menú de compartir del teléfono, de mentiras: apunta lo que se le manda
   await pg.evaluate(() => { window.__mandado = []; navigator.canShare = () => true; navigator.share = async (o) => { window.__mandado.push((o.files || []).map((f) => [f.name, f.type])); }; });
@@ -2283,7 +2288,7 @@ test('«Compartir» hace el video del partido (resultado, los 3 que más sumaron
   assert.equal(await pg.evaluate(() => VID), null);
   assert.deepEqual(pg.errores, []);
   await pg.context().close();
-  // sin grabadora (teléfono viejo): «Compartir» manda la imagen del podio en el mismo toque, sin hoja
+  // sin grabadora (teléfono viejo): «Compartir» manda la imagen del final en el mismo toque, sin hoja
   const sin = await telefono(srv.url);
   await sin.context().addInitScript(() => { delete window.MediaRecorder; }); await sin.reload(); await sin.waitForSelector('#tel .nav'); await sembrar(sin, true);
   await sin.evaluate(() => { window.__mandado = []; navigator.canShare = () => true; navigator.share = async (o) => { window.__mandado.push((o.files || []).map((f) => [f.name, f.type])); }; });
